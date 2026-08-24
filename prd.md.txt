@@ -1,0 +1,976 @@
+# PRD — Urban Infrastructure Cascade Simulator (S-03)
+
+**Product:** Urban Infrastructure Cascade Simulator
+**Problem Statement:** S-03 — Smart Cities & Urban Infrastructure
+**Document:** Product Requirements Document
+**Purpose:** Defines WHAT we are building.
+**Technical implementation:** Defined separately in `02_TRD.md`.
+
+---
+
+# 1. Product Vision
+
+## One-line Vision
+
+> A deterministic and explainable simulator that shows how failures
+> propagate across interconnected urban services over time and how
+> recovery actions can reduce the impact of a cascade.
+
+## Product Positioning
+
+The system is not a conventional monitoring dashboard.
+
+A monitoring dashboard tells an operator:
+
+> "Power is down."
+
+Our system answers:
+
+> "Power failed at T+0. Because the water pump depends on power,
+> it degraded at T+5. The water network then degraded at T+10,
+> affecting the hospital at T+15."
+
+The product therefore acts as a:
+
+**Mission Control for Urban Infrastructure Resilience.**
+
+---
+
+# 2. Problem
+
+Urban infrastructure systems are interconnected.
+
+Electricity, water, telecommunications, emergency services,
+transportation and healthcare can depend on one another.
+
+A failure in one service can therefore propagate into other services.
+
+Traditional isolated monitoring can identify individual failures,
+but does not necessarily explain:
+
+- Which services will be affected?
+- Through which dependency?
+- When will the impact occur?
+- How deep will the cascade become?
+- Which recovery action can reduce the impact?
+
+The simulator addresses this problem by representing the services
+and their dependencies as a dynamic graph and simulating failure
+and recovery over simulated time.
+
+---
+
+# 3. Target User
+
+The hackathon problem statement does not specify a target user.
+
+For the prototype, we use the following conceptual user:
+
+## Municipal Infrastructure Operator
+
+The operator wants to:
+
+1. Understand an infrastructure failure.
+2. See how it propagates.
+3. Identify affected services.
+4. Understand the causal chain.
+5. Test recovery actions.
+6. Compare outcomes.
+
+The primary real-world audience for this prototype is conceptual.
+The actual hackathon user is the judge evaluating the system.
+
+---
+
+# 4. Product Goals
+
+## Goal 1 — Model Dependencies
+
+Represent interconnected urban services as a directed graph.
+
+## Goal 2 — Simulate Cascades
+
+Simulate how a disruption propagates through dependencies over time.
+
+## Goal 3 — Support Multiple Failures
+
+Allow multiple services to fail at the same simulated timestamp.
+
+## Goal 4 — Simulate Recovery
+
+Allow operators to apply recovery actions and observe their effect.
+
+## Goal 5 — Measure Impact
+
+Calculate:
+
+- Cascade Depth
+- Affected Services
+- Recovery Time
+
+## Goal 6 — Explain the Cascade
+
+Every non-healthy service should have a visible causal explanation.
+
+## Goal 7 — Reproduce Results
+
+The same scenario and parameters must produce the same simulation
+result and event history.
+
+---
+
+# 5. Non-Goals
+
+The following are explicitly outside the initial prototype:
+
+- Real municipal infrastructure integration.
+- Real government APIs.
+- Real SCADA systems.
+- Real-time infrastructure monitoring.
+- Physically accurate electrical simulation.
+- Physically accurate hydraulic simulation.
+- Physically accurate traffic simulation.
+- Large-scale disaster prediction.
+- Training a machine-learning model.
+- Unseeded/random simulation behaviour.
+- Real-world claims about specific Indian infrastructure.
+
+The prototype uses a synthetic urban infrastructure model.
+
+---
+
+# 6. Synthetic City
+
+The prototype should use a fictional city/infrastructure model.
+
+Example:
+
+**JanNagar Resilience Grid**
+
+The city is designed only for simulation.
+
+All:
+
+- service dependencies
+- propagation delays
+- failure thresholds
+- recovery times
+- node relationships
+
+are simulation parameters.
+
+They must not be presented as measurements from a real Indian city.
+
+---
+
+# 7. MVP Scope
+
+The MVP must contain the following capabilities.
+
+| Feature | Priority |
+|---|---|
+| Urban service dependency graph | MUST |
+| Dynamic node states | MUST |
+| Time-based simulation | MUST |
+| Single failure injection | MUST |
+| Multiple simultaneous failures | MUST |
+| Failure propagation | MUST |
+| Recovery actions | MUST |
+| Cascade Depth | MUST |
+| Affected Services | MUST |
+| Recovery Time | MUST |
+| Reproducible scenarios | MUST |
+| Live graph visualization | MUST |
+| Event timeline | MUST |
+| Failure explanation | MUST |
+
+---
+
+# 8. Recommended Demo Graph
+
+The exact number of nodes is not specified by the problem statement.
+
+For the hackathon MVP, use approximately 10–15 nodes.
+
+Example:
+
+```text
+                 POWER GRID
+                 /    |    \
+                /     |     \
+               ↓      ↓      ↓
+        WATER PUMP  TRAFFIC  TELECOM
+            ↓       SIGNALS     ↓
+            ↓          ↓        ↓
+      WATER NETWORK    ↓    EMERGENCY
+            ↓          ↓     DISPATCH
+            ↓          ↓        ↓
+         HOSPITAL ←────┴────────┘
+            ↓
+       PUBLIC SERVICES
+
+
+
+9. Service Model
+
+Each service is represented as a node.
+
+Example services:
+
+Power Grid
+Water Pump
+Water Distribution
+Telecom
+Traffic Signals
+Emergency Dispatch
+Hospital
+Sewage System
+Public Transport
+Municipal Control
+Fuel Station
+
+These are synthetic simulation entities.
+
+10. Dependency Model
+
+Dependencies are directed relationships.
+
+Example:
+
+Power Grid
+    ↓
+Water Pump
+
+means:
+
+Water Pump requires Power Grid.
+
+Another example:
+
+Power Grid ─────┐
+                ↓
+            Hospital
+                ↑
+Water Supply ───┘
+
+means:
+
+Hospital depends on both Power Grid and Water Supply.
+
+11. Node State Model
+
+Each service has one current state.
+
+MVP states:
+
+HEALTHY
+DEGRADED
+FAILED
+RECOVERING
+
+Optional:
+
+AT_RISK
+
+should only be added if it provides clear simulation value.
+
+State Flow
+HEALTHY
+   ↓
+DEGRADED
+   ↓
+FAILED
+   ↓
+RECOVERING
+   ↓
+HEALTHY
+
+A service should not jump directly from:
+
+FAILED → HEALTHY
+
+during normal recovery.
+
+12. Time-Based Simulation
+
+The simulator operates on simulated time.
+
+Example:
+
+T+00  Power fails
+T+05  Water Pump degrades
+T+10  Water Pump fails
+T+15  Water Network degrades
+T+20  Hospital degrades
+
+The simulation does not depend on real-world clock time.
+
+Propagation delays are configurable simulation parameters.
+
+13. Failure Injection
+
+The user must be able to select one or more services
+before starting a simulation.
+
+Example:
+
+Initial Failures:
+
+☑ Power Grid
+☐ Water Pump
+☐ Telecom
+☐ Hospital
+
+The user then selects:
+
+Run Simulation
+
+The selected services enter the failure state at T+0.
+
+14. Multiple Simultaneous Disruptions
+
+The simulator must support multiple failures at the same timestamp.
+
+Example:
+
+T+0
+
+POWER GRID      FAILED
+TELECOM         FAILED
+
+Their downstream effects must be evaluated together.
+
+Shared dependent services must not be processed twice or
+double-counted.
+
+15. Failure Propagation
+
+When a dependency fails, dependent services are evaluated.
+
+Example:
+
+POWER GRID
+    ↓
+WATER PUMP
+
+If:
+
+POWER GRID = FAILED
+
+then after the configured propagation delay:
+
+WATER PUMP = DEGRADED / FAILED
+
+depending on the configured dependency rule.
+
+16. Multi-Dependency Rule
+
+A service can have multiple dependencies.
+
+Example:
+
+Power ───────┐
+             ↓
+          Hospital
+             ↑
+Water ───────┘
+
+Recommended MVP rule:
+
+One failed critical dependency → DEGRADED.
+Multiple/all critical dependencies failed → FAILED.
+
+The exact rule must be implemented consistently throughout
+the simulation.
+
+17. Recovery Actions
+
+The user can apply a recovery action to an affected service.
+
+MVP recovery actions:
+
+Repair
+
+Attempts to restore a failed service.
+
+Backup Power
+
+Provides an alternative power source for a dependent service.
+
+Example:
+
+Power Failure
+     ↓
+Water Pump affected
+
+Activate Backup Power
+     ↓
+Water Pump protected
+     ↓
+Cascade reduced
+
+Additional recovery actions can be added only if the MVP is stable.
+
+18. Cascade Depth
+
+Cascade Depth measures how far a failure propagated from
+its initial source.
+
+Definition:
+
+Depth 0 = initial failure
+
+Depth 1 = directly affected service
+
+Depth 2 = next downstream service
+
+Depth 3 = next downstream service
+
+Example:
+
+Power
+ ↓
+Water Pump
+ ↓
+Water Network
+ ↓
+Hospital
+
+Cascade Depth:
+
+3
+19. Affected Services
+
+Affected Services counts downstream services that became
+non-healthy because of the initial disruption.
+
+The initial failure node itself is excluded.
+
+Example:
+
+Initial:
+Power
+
+Affected:
+Water Pump
+Water Network
+Hospital
+Emergency Dispatch
+
+Affected Services:
+
+4
+
+The UI should display both:
+
+Count
+List of affected services
+20. Recovery Time
+
+Recovery Time represents the simulated time required
+for the affected system/service to recover.
+
+Example:
+
+Failure:
+T+00
+
+Recovery:
+T+30
+
+Restored:
+T+40
+
+Recovery Time:
+10 minutes
+
+The exact system-level recovery definition should be fixed
+in the technical design and applied consistently.
+
+21. Explainability
+
+Every non-healthy service must be explainable.
+
+Example:
+
+HOSPITAL
+Status: DEGRADED
+
+Why?
+
+Water Distribution failed at T+15.
+Hospital depends on Water Distribution.
+
+The explanation should contain:
+
+affected node
+cause
+dependency
+timestamp
+
+This is essential for demonstrating that the system is
+actually simulating a causal cascade rather than changing
+colors randomly.
+
+22. Event Timeline
+
+The application should provide a chronological timeline.
+
+Example:
+
+00:00  POWER GRID FAILED
+       └─ User injected failure
+
+00:05  WATER PUMP DEGRADED
+       └─ Power Grid dependency failed
+
+00:10  WATER PUMP FAILED
+       └─ Power unavailable
+
+00:15  WATER NETWORK DEGRADED
+       └─ Water Pump failed
+
+00:20  HOSPITAL DEGRADED
+       └─ Water Network dependency failed
+
+00:25  BACKUP POWER ACTIVATED
+       └─ Recovery action
+
+00:35  WATER PUMP RECOVERING
+
+00:40  WATER PUMP HEALTHY
+
+The timeline must use the same simulation clock as the graph.
+
+23. Graph Visualization
+
+The graph is the primary visual representation.
+
+Nodes
+
+Represent urban services.
+
+Edges
+
+Represent dependencies.
+
+State Visualization
+
+Recommended:
+
+HEALTHY       → Green
+DEGRADED      → Amber
+FAILED        → Red
+RECOVERING    → Blue/Cyan
+
+When a failure propagates, the affected path should become
+visually highlighted.
+
+24. Simulation Controls
+
+The main simulator should provide:
+
+Scenario
+[ Select Scenario ]
+
+Initial Failures
+[ Select Services ]
+
+Simulation
+
+[ ▶ Run ]
+[ ⏸ Pause ]
+[ ↻ Reset ]
+
+Time
+T+00:00
+
+Speed
+[ 1x ] [ 2x ] [ 5x ]
+
+The user should be able to observe the simulation rather than
+only receiving the final result.
+
+25. Metrics Dashboard
+
+During/after simulation display:
+
+┌───────────────────────┐
+│ CASCADE DEPTH         │
+│ 4                     │
+└───────────────────────┘
+
+┌───────────────────────┐
+│ AFFECTED SERVICES     │
+│ 6                     │
+└───────────────────────┘
+
+┌───────────────────────┐
+│ RECOVERY TIME         │
+│ 32 min                │
+└───────────────────────┘
+
+Optional metrics:
+
+Peak Impact
+Time to Stabilization
+Critical Services Affected
+
+These are secondary to the three required metrics.
+
+26. Scenario System
+
+A scenario contains:
+
+Scenario Name
+Graph Version
+Initial Failures
+Simulation Parameters
+Recovery Actions
+Simulation Duration
+
+Example:
+
+Scenario:
+Major Power Failure
+
+Initial Failure:
+POWER_GRID_01
+
+Duration:
+60 minutes
+
+Recovery:
+Backup Power at T+20
+27. Reproducibility
+
+Running the same scenario twice must produce
+the same result.
+
+Example:
+
+Run 1:
+Affected Services = 6
+Cascade Depth = 4
+Recovery Time = 32 min
+
+Run 2:
+Affected Services = 6
+Cascade Depth = 4
+Recovery Time = 32 min
+
+The simulation engine must not depend on:
+
+Math.random()
+wall-clock time
+unpredictable event ordering
+28. Scenario Comparison
+Should Have
+
+If MVP is completed early, support:
+
+Scenario A
+No Recovery
+
+vs
+
+Scenario B
+Backup Power at T+10
+
+Display:
+
+Metric	No Recovery	With Recovery
+Affected Services	8	3
+Cascade Depth	5	2
+Recovery Time	50 min	25 min
+
+The system should show the data.
+
+It should not make unsupported claims such as
+"this strategy is scientifically optimal."
+
+29. User Flow
+OPEN SIMULATOR
+      ↓
+SELECT SCENARIO
+      ↓
+SELECT INITIAL FAILURE(S)
+      ↓
+REVIEW DEPENDENCY GRAPH
+      ↓
+RUN SIMULATION
+      ↓
+FAILURE PROPAGATES
+      ↓
+OBSERVE GRAPH + TIMELINE
+      ↓
+INSPECT WHY A SERVICE FAILED
+      ↓
+APPLY RECOVERY ACTION
+      ↓
+OBSERVE RECOVERY
+      ↓
+VIEW METRICS
+      ↓
+OPTIONALLY COMPARE SCENARIOS
+30. Primary Demo Scenario
+
+The main presentation scenario should be:
+
+Major Power Substation Failure
+
+Initial failure:
+
+POWER_GRID_01
+
+Example cascade:
+
+POWER GRID
+    ↓
+WATER PUMP
+    ↓
+WATER DISTRIBUTION
+    ↓
+HOSPITAL
+    ↓
+EMERGENCY DISPATCH
+
+The actual timing values are simulation parameters,
+not real infrastructure measurements.
+
+31. Secondary Demo Scenario
+Dual Infrastructure Failure
+
+At T+0:
+
+POWER_GRID_01
+TELECOM_NODE_01
+
+both fail.
+
+The simulation demonstrates two cascading paths
+eventually affecting shared services.
+
+This directly demonstrates the multiple-disruption requirement.
+
+32. Recovery Demo
+
+After the cascade begins:
+
+Activate Backup Power
+
+The system should show:
+
+Before recovery:
+
+Power
+ ↓
+Water Pump
+ ↓
+Water
+ ↓
+Hospital
+
+After recovery:
+
+Power FAILED
+ ↓
+Backup Power ACTIVE
+ ↓
+Water Pump RECOVERING
+ ↓
+Water Network STABILIZED
+
+The final metrics should change if the recovery action
+actually affects the simulation.
+
+33. MVP Acceptance Criteria
+
+The MVP is considered complete when:
+
+AC1 — Graph
+
+A judge can see interconnected urban services
+and their dependencies.
+
+AC2 — Single Failure
+
+A judge can inject one failure and observe
+at least three downstream state transitions.
+
+AC3 — Time
+
+Each transition occurs according to simulated time.
+
+AC4 — Multiple Failures
+
+Two simultaneous failures can be injected and
+their effects correctly merged.
+
+AC5 — Recovery
+
+A recovery action changes the resulting cascade.
+
+AC6 — Metrics
+
+The simulator displays:
+
+Cascade Depth
+Affected Services
+Recovery Time
+AC7 — Explainability
+
+A judge can inspect why an affected service changed state.
+
+AC8 — Reproducibility
+
+The same scenario produces the same event log and metrics.
+
+AC9 — Visual Synchronization
+
+The graph, timeline, and metrics all represent
+the same simulation state.
+
+34. Definition of Done
+
+The product is ready for the hackathon when:
+
+Simulation engine works independently of UI.
+At least one complete scenario works end-to-end.
+Multiple simultaneous failures work correctly.
+Recovery action works.
+Required metrics are correct.
+Event timeline is correct.
+Causal explanations are correct.
+Scenario replay produces identical results.
+npm run typecheck passes.
+npm run build passes.
+No real-world infrastructure claims are made.
+Demo can be completed in approximately 2–3 minutes.
+35. Risks & Mitigation
+Risk 1 — Scope Creep
+
+Problem:
+
+Adding 3D, AI, maps and advanced analytics before
+the simulation engine is stable.
+
+Mitigation:
+
+Simulation engine first.
+
+Risk 2 — Incorrect Cascade Logic
+
+Problem:
+
+A node may fail twice or shared dependencies may be
+double-counted.
+
+Mitigation:
+
+Process same-timestamp events as deterministic batches.
+
+Risk 3 — Non-Reproducible Results
+
+Problem:
+
+Randomness or event-order differences create
+different outputs.
+
+Mitigation:
+
+Deterministic engine and fixed event ordering.
+
+Risk 4 — Fake Real-World Claims
+
+Problem:
+
+Synthetic dependencies may be interpreted as actual
+Indian infrastructure.
+
+Mitigation:
+
+Clearly label:
+
+"Synthetic Simulation Model"
+
+36. Future Enhancements
+
+These are NOT required for MVP.
+
+Possible future additions:
+
+3D synthetic city visualization.
+Geographic zones.
+AI-generated post-simulation explanation.
+Advanced recovery planning.
+Scenario comparison.
+Impact ranking.
+Historical scenario library.
+Real infrastructure data integration.
+Advanced network resilience algorithms.
+
+Any future AI layer must explain simulation results,
+not replace the deterministic simulation engine.
+
+37. Product Principle
+
+The simulator must follow:
+
+INPUT
+  ↓
+DEPENDENCY GRAPH
+  ↓
+DETERMINISTIC SIMULATION
+  ↓
+EVENT LOG
+  ↓
+METRICS
+  ↓
+VISUALIZATION
+  ↓
+OPTIONAL AI EXPLANATION
+
+The simulation engine is the source of truth.
+
+AI is not the source of truth.
+
+38. Final Product Definition
+
+The Urban Infrastructure Cascade Simulator is a deterministic,
+explainable simulation platform that models interconnected urban
+services as a dynamic dependency graph, simulates failures and
+recovery over time, measures cascade impact, and allows users to
+understand how intervention changes the outcome.
+
+
+
+## 6A. Deterministic Simulation Rules
+
+The simulator shall follow these rules:
+
+1. The same scenario input must always produce the same result.
+2. Events occurring at the same simulated timestamp shall be processed
+   using a deterministic ordering.
+3. Multiple simultaneous failures shall be evaluated as one batch.
+4. Shared downstream services shall not receive duplicate failure events.
+5. Recovery shall be represented as a state transition rather than an
+   instantaneous state change.
+6. The initial failed node(s) shall not be counted as downstream
+   affected services.
+7. All state changes shall generate an execution-history event.
+
+
+
+## 6B. Scenario Validation
+
+Before execution, a scenario must be validated for:
+
+- duplicate node IDs
+- missing dependency references
+- invalid propagation delays
+- invalid recovery parameters
+- circular dependencies
+- invalid initial failure nodes
+
+Invalid scenarios must not start execution.

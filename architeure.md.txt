@@ -1,0 +1,930 @@
+# Architecture — Urban Infrastructure Cascade Simulator (S-03)
+
+This document defines the system architecture and data flow for the
+Urban Infrastructure Cascade Simulator.
+
+The architecture is based on the approved:
+
+- `01_RESEARCH.md`
+- `02_PRD.md`
+- `03_TRD.md`
+
+The system is designed as a browser-based, deterministic simulation
+application for a synthetic urban infrastructure network.
+
+---
+
+# 1. Architecture Overview
+
+The application follows a layered architecture:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                        PRESENTATION                         │
+│                                                             │
+│  Dashboard  │  Graph  │  Timeline  │  Metrics  │ Controls  │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     APPLICATION LAYER                       │
+│                                                             │
+│       Simulation Controller / React Hooks                  │
+│       Scenario Management / UI State                       │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      SIMULATION CORE                        │
+│                                                             │
+│ Event Queue │ Dependency Resolver │ Propagation │ Recovery  │
+│             │ State Transition     │ Metrics                │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                         DATA LAYER                          │
+│                                                             │
+│  City Graph │ Scenarios │ Configuration │ Local Storage    │
+└─────────────────────────────────────────────────────────────┘
+
+
+2. Core Architecture Principle
+
+The Simulation Engine is the source of truth.
+
+React components must not independently calculate cascade behavior.
+
+The correct flow is:
+
+User Action
+     ↓
+Simulation Controller
+     ↓
+Simulation Engine
+     ↓
+State Changes + Events
+     ↓
+Metrics / Timeline / Graph State
+     ↓
+React UI
+
+For example:
+
+User clicks "Fail Power Grid"
+             ↓
+Simulation Controller
+             ↓
+SimulationEngine.injectFailure()
+             ↓
+EventQueue
+             ↓
+FailurePropagation
+             ↓
+Water Pump scheduled to fail at T+5
+             ↓
+SimulationState updated
+             ↓
+Graph + Timeline + Metrics update
+3. Layer Responsibilities
+3.1 Presentation Layer
+
+Responsible only for displaying information and collecting user input.
+
+Includes:
+
+Graph
+Timeline
+Metrics
+Simulation Controls
+Scenario Selector
+Recovery Controls
+Node Inspector
+
+The presentation layer must not contain core simulation algorithms.
+
+3.2 Application Layer
+
+Responsible for connecting React UI actions with the simulation engine.
+
+Main responsibilities:
+
+Start simulation
+Pause simulation
+Reset simulation
+Advance simulation
+Inject failures
+Apply recovery actions
+Load scenarios
+Save scenarios
+Update UI state
+
+Main hook:
+
+useSimulation()
+3.3 Simulation Core
+
+This is the most important layer.
+
+Responsibilities:
+
+Maintain simulation state
+Maintain simulated time
+Process events
+Resolve dependencies
+Propagate failures
+Process recovery
+Calculate metrics
+Generate causal explanations
+
+Core modules:
+
+SimulationEngine
+EventQueue
+DependencyResolver
+FailurePropagation
+RecoveryManager
+MetricsCalculator
+
+This layer should be as independent from React as possible.
+
+3.4 Data Layer
+
+Contains:
+
+Synthetic city graph
+Service definitions
+Dependency definitions
+Scenario definitions
+Simulation configuration
+Saved scenario data
+
+For MVP:
+
+Static TypeScript data
+        +
+localStorage
+
+No backend is required.
+
+4. Main Components
+src/
+│
+├── engine/
+│   ├── SimulationEngine.ts
+│   ├── EventQueue.ts
+│   ├── DependencyResolver.ts
+│   ├── FailurePropagation.ts
+│   ├── RecoveryManager.ts
+│   └── MetricsCalculator.ts
+│
+├── types/
+│   ├── node.ts
+│   ├── edge.ts
+│   ├── event.ts
+│   ├── scenario.ts
+│   └── simulation.ts
+│
+├── data/
+│   ├── cityGraph.ts
+│   ├── scenarios.ts
+│   └── simulationConfig.ts
+│
+├── hooks/
+│   └── useSimulation.ts
+│
+├── components/
+│   ├── graph/
+│   ├── simulation/
+│   ├── metrics/
+│   ├── timeline/
+│   ├── recovery/
+│   └── scenarios/
+│
+├── pages/
+│   ├── DashboardPage.tsx
+│   └── SimulatorPage.tsx
+│
+└── utils/
+5. Data Flow
+
+The complete application data flow is:
+
+Synthetic City Graph
+        ↓
+Scenario
+        ↓
+Simulation Engine
+        ↓
+Initial Failure
+        ↓
+Event Queue
+        ↓
+Dependency Resolution
+        ↓
+Failure Propagation
+        ↓
+State Changes
+        ↓
+Event History
+        ↓
+┌───────────────┬────────────────┬─────────────────┐
+│               │                │                 │
+▼               ▼                ▼                 ▼
+Graph         Timeline         Metrics        Inspector
+6. Simulation Engine Architecture
+
+The engine acts as the central coordinator.
+
+                 SimulationEngine
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+        ▼              ▼              ▼
+   EventQueue    DependencyResolver   RecoveryManager
+        │              │              │
+        └──────────────┼──────────────┘
+                       │
+                       ▼
+               State Transition
+                       │
+                       ▼
+                MetricsCalculator
+7. Simulation State
+
+The engine maintains a single simulation state.
+
+Conceptual structure:
+
+interface SimulationState {
+  currentTime: number;
+
+  status: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED";
+
+  nodes: InfrastructureNode[];
+
+  events: SimulationEvent[];
+
+  metrics: SimulationMetrics;
+
+  initialFailures: string[];
+
+  activeScenarioId?: string;
+}
+
+The UI reads this state.
+
+The UI does not independently create another simulation state.
+
+8. Event Processing Architecture
+
+All state transitions occur through events.
+
+Example:
+
+T+00
+POWER_GRID FAILED
+      │
+      ▼
+EventQueue
+      │
+      ▼
+DependencyResolver
+      │
+      ▼
+Water Pump affected
+      │
+      ▼
+Schedule event at T+05
+      │
+      ▼
+T+05
+WATER_PUMP FAILED
+
+The event queue therefore becomes the mechanism through which
+simulation time advances.
+
+9. Event Lifecycle
+
+Every event follows:
+
+CREATE
+  ↓
+QUEUE
+  ↓
+SORT
+  ↓
+PROCESS
+  ↓
+VALIDATE
+  ↓
+STATE CHANGE
+  ↓
+RECORD
+  ↓
+GENERATE DOWNSTREAM EVENTS
+
+Example:
+
+Power failure
+     ↓
+Create event
+     ↓
+Queue event
+     ↓
+Process at T+00
+     ↓
+Power = FAILED
+     ↓
+Record event
+     ↓
+Find dependents
+     ↓
+Schedule Water Pump event
+10. Dependency Resolution
+
+The DependencyResolver determines which services are affected by a
+state change.
+
+Example graph:
+
+Power Grid
+ ├──────────────→ Water Pump
+ │
+ ├──────────────→ Traffic Signals
+ │
+ └──────────────→ Hospital
+
+Telecom
+ ├──────────────→ Emergency Dispatch
+ │
+ └──────────────→ Public Transport
+
+If Power Grid fails, the resolver finds:
+
+Water Pump
+Traffic Signals
+Hospital
+
+It does not automatically modify their states.
+
+It only identifies affected nodes and passes them to the propagation
+logic.
+
+11. Failure Propagation Architecture
+
+The propagation module determines what happens after a dependency
+failure.
+
+Dependency Failure
+        ↓
+Find affected node
+        ↓
+Read all dependencies
+        ↓
+Evaluate dependency states
+        ↓
+Determine resulting state
+        ↓
+Calculate propagation delay
+        ↓
+Create event
+        ↓
+Add to EventQueue
+
+This separation keeps dependency discovery separate from state
+calculation.
+
+12. Multiple Failure Architecture
+
+Multiple initial failures are processed as a batch.
+
+Example:
+
+T+00
+
+Power Grid FAILED
+Telecom FAILED
+
+The engine evaluates both before processing downstream effects.
+
+For a shared dependent:
+
+Power Grid ─────┐
+                ▼
+             Hospital
+                ▲
+Telecom ────────┘
+
+Hospital is evaluated once using the combined dependency state.
+
+This prevents duplicate events and incorrect affected-service counts.
+
+13. Recovery Architecture
+
+Recovery follows the same event-based architecture.
+
+FAILED
+  ↓
+Recovery Action
+  ↓
+RECOVERING
+  ↓
+Recovery Duration
+  ↓
+HEALTHY
+
+Example:
+
+Hospital FAILED
+      ↓
+Backup Power
+      ↓
+Hospital RECOVERING
+      ↓
+T+20
+      ↓
+Hospital HEALTHY
+
+Recovery events are added to the same event queue.
+
+Therefore recovery and failure propagation share one simulation clock.
+
+14. Metrics Architecture
+
+Metrics are calculated from simulation history and state.
+
+Event History
+      │
+      ├───────────────┐
+      │               │
+      ▼               ▼
+Cascade Graph      State History
+      │               │
+      ▼               ▼
+Cascade Depth     Recovery Time
+      │
+      ▼
+Affected Services
+
+The UI receives a single metrics object.
+
+interface SimulationMetrics {
+  cascadeDepth: number;
+
+  affectedServices: number;
+
+  affectedNodeIds: string[];
+
+  recoveryTime: number;
+
+  criticalServicesAffected?: number;
+
+  stabilizationTime?: number;
+}
+
+Optional metrics should not affect MVP correctness.
+
+15. Explainability Architecture
+
+Every state change should maintain a causal reference.
+
+Example:
+
+Hospital DEGRADED
+       ↓
+Cause:
+Water Distribution FAILED
+       ↓
+Cause:
+Water Pump FAILED
+       ↓
+Cause:
+Power Grid FAILED
+
+Conceptually:
+
+interface CausalReference {
+  eventId: string;
+  sourceNodeId?: string;
+  reason: string;
+}
+
+This allows the UI to answer:
+
+"Why is this service affected?"
+
+without reconstructing the entire history manually.
+
+16. Graph UI Architecture
+
+React Flow represents the simulation graph.
+
+SimulationState
+      ↓
+Graph Adapter
+      ↓
+React Flow Nodes + Edges
+      ↓
+Infrastructure Graph
+
+The graph adapter converts domain models into visualization models.
+
+The engine should not know that React Flow exists.
+
+17. Node Visualization
+
+Domain state:
+
+FAILED
+
+is converted by the UI into:
+
+Red Node
+Red Border
+Failure Icon
+
+Domain state:
+
+RECOVERING
+
+becomes:
+
+Blue Node
+Recovery Animation
+
+Visualization is therefore derived from state.
+
+18. Timeline Architecture
+
+The timeline consumes the event history.
+
+SimulationEvent[]
+       ↓
+Timeline Formatter
+       ↓
+EventTimeline
+
+Example:
+
+T+00  🔴 Power Grid failed
+T+05  🔴 Water Pump failed
+T+10  🟠 Water Distribution degraded
+T+15  🟠 Hospital degraded
+
+The timeline must not generate events.
+
+19. Scenario Architecture
+
+Scenario flow:
+
+Scenario Library
+      ↓
+Scenario Loader
+      ↓
+Simulation Engine
+      ↓
+Run
+      ↓
+Save Result
+      ↓
+localStorage
+
+Saved scenario contains:
+
+Graph Version
+Initial Failures
+Configuration
+Recovery Actions
+Event History
+Metrics
+20. localStorage Architecture
+
+Use a dedicated service:
+
+storageService.ts
+
+Responsibilities:
+
+saveScenario()
+loadScenario()
+deleteScenario()
+listScenarios()
+
+Do not call localStorage directly from multiple React components.
+
+21. UI → Engine Interaction
+
+Example:
+
+User clicks:
+"Fail Power Grid"
+       ↓
+FailureSelector
+       ↓
+useSimulation()
+       ↓
+SimulationEngine.injectFailure()
+       ↓
+EventQueue
+       ↓
+SimulationState
+       ↓
+React re-render
+22. Recovery Interaction
+User selects:
+"Backup Power"
+       ↓
+RecoveryPanel
+       ↓
+useSimulation()
+       ↓
+SimulationEngine.applyRecovery()
+       ↓
+RecoveryManager
+       ↓
+EventQueue
+       ↓
+State Update
+       ↓
+Metrics Update
+       ↓
+UI Update
+23. Simulation Playback
+
+Playback should not require real-time simulation calculations.
+
+The engine operates on virtual time.
+
+Example:
+
+Current Time: T+10
+
+User presses ▶
+
+T+11
+T+12
+T+13
+...
+
+Speed controls only determine how quickly the UI advances through
+simulation time.
+
+The underlying event ordering remains deterministic.
+
+24. Reset Architecture
+
+When Reset is selected:
+
+Reset
+ ↓
+Clear Event Queue
+ ↓
+Reset Node States
+ ↓
+Reset Simulation Clock
+ ↓
+Clear Metrics
+ ↓
+Clear Event History
+ ↓
+Restore Initial Scenario
+
+The original scenario definition must remain unchanged.
+
+25. Scenario Replay
+
+Replay uses the original scenario definition.
+
+Saved Scenario
+      ↓
+Fresh Simulation Engine
+      ↓
+Same Graph Version
+      ↓
+Same Initial Failures
+      ↓
+Same Parameters
+      ↓
+Same Recovery Actions
+      ↓
+Same Event Log
+
+The previous simulation state must not leak into the new run.
+
+26. Architecture for Determinism
+
+The engine must not depend on:
+
+Real clock
+Random numbers
+Browser timing
+Network responses
+React render order
+Object iteration order
+
+Determinism must come from:
+
+Scenario Input
++
+Graph Definition
++
+Simulation Parameters
++
+Stable Event Ordering
+27. Validation Layer
+
+Before a scenario starts, validate:
+
+Node IDs
+Dependency IDs
+Duplicate nodes
+Missing dependencies
+Invalid propagation delays
+Invalid recovery actions
+Circular dependencies
+
+Invalid scenarios must not start simulation.
+
+Example:
+
+A → B
+B → C
+C → A
+
+Result:
+
+❌ Invalid Scenario
+Circular dependency detected.
+28. Error Boundary
+
+The React application should gracefully handle UI failures.
+
+Recommended:
+
+React Error Boundary
+        ↓
+Friendly error screen
+        ↓
+"Reset Simulation"
+
+Simulation errors should be shown separately from visualization errors.
+
+29. Module Dependency Rules
+
+Follow these rules:
+
+Allowed
+UI → Hooks → Engine
+UI → Data
+Engine → Types
+Engine → Data
+Services → Storage
+Not allowed
+Engine → React Components
+Engine → Browser DOM
+Engine → React Flow
+Engine → UI state
+
+The simulation engine must remain framework-independent.
+
+30. Recommended Build Order
+1. Types
+      ↓
+2. Synthetic graph
+      ↓
+3. Event model
+      ↓
+4. Event queue
+      ↓
+5. Simulation engine
+      ↓
+6. Dependency resolver
+      ↓
+7. Failure propagation
+      ↓
+8. Recovery manager
+      ↓
+9. Metrics
+      ↓
+10. Engine tests
+      ↓
+11. React Flow graph
+      ↓
+12. Timeline
+      ↓
+13. Metrics dashboard
+      ↓
+14. Scenario management
+      ↓
+15. UI polish
+      ↓
+16. Optional advanced visualization
+31. Team Development Boundaries
+
+To minimize Git merge conflicts:
+
+Team Member 1 — Simulation Engine
+
+Own:
+
+src/engine/
+src/types/
+src/data/
+Team Member 2 — Graph Visualization
+
+Own:
+
+src/components/graph/
+src/components/simulation/
+Team Member 3 — Dashboard & Timeline
+
+Own:
+
+src/components/metrics/
+src/components/timeline/
+src/pages/
+Team Member 4 — Recovery & Scenarios
+
+Own:
+
+src/components/recovery/
+src/components/scenarios/
+src/services/
+
+All members must coordinate before modifying:
+
+src/App.tsx
+package.json
+shared types
+32. Final Architecture
+
+The final system follows:
+
+                   USER
+                     │
+                     ▼
+              ┌─────────────┐
+              │  React UI   │
+              └──────┬──────┘
+                     │
+                     ▼
+              ┌─────────────┐
+              │ useSimulation│
+              └──────┬──────┘
+                     │
+                     ▼
+        ┌─────────────────────────┐
+        │    Simulation Engine    │
+        │                         │
+        │ Event Queue             │
+        │ Dependency Resolver     │
+        │ Failure Propagation     │
+        │ Recovery Manager        │
+        │ Metrics Calculator      │
+        └────────────┬────────────┘
+                     │
+                     ▼
+              ┌─────────────┐
+              │ Simulation  │
+              │    State    │
+              └──────┬──────┘
+                     │
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+       Graph      Timeline    Metrics
+          │          │          │
+          └──────────┼──────────┘
+                     ▼
+                USER INSIGHT
+33. Architecture Principle
+
+The project should demonstrate:
+
+A failure enters the system → the deterministic engine evaluates dependencies → events propagate through simulated time → recovery actions modify the trajectory → metrics quantify the result → the UI explains exactly what happened and why.
+
+The architecture must prioritize correctness of the simulation engine
+over decorative visualization.
+
+3D, advanced animations, AI summaries, and other visual enhancements
+may be added only after the core simulation is stable.
+
+
+### Ab ye 4 documents ka role clear hai
+
+```text
+01_RESEARCH.md
+     ↓
+Why / Problem ko samjha
+
+02_PRD.md
+     ↓
+WHAT banana hai
+
+03_TRD.md
+     ↓
+HOW technically banana hai
+
+04_ARCHITECTURE.md
+     ↓
+Sab modules ek dusre se kaise connect honge

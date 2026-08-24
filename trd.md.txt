@@ -1,0 +1,983 @@
+# TRD — Urban Infrastructure Cascade Simulator (S-03)
+
+**Defines HOW the product described in `02_PRD.md` will be implemented.**
+
+---
+
+# 1. Technical Objective
+
+Build a deterministic, browser-based simulation engine that models
+urban infrastructure as a directed dependency graph and simulates
+failure propagation, recovery, and measurable impact over simulated
+time.
+
+The system must be:
+
+- Deterministic
+- Explainable
+- Reproducible
+- Modular
+- Fast enough for real-time demo playback
+- Independent from real municipal infrastructure
+
+The first implementation will use synthetic infrastructure data.
+
+---
+
+# 2. Technology Stack
+
+## Frontend
+
+- React
+- TypeScript
+- Vite
+
+## Visualization
+
+- React Flow for the infrastructure dependency graph
+- Recharts for metrics/charts
+- Lucide React for icons
+
+## State Management
+
+Use React state/hooks initially.
+
+Do not introduce Redux or another global state library unless
+implementation complexity requires it.
+
+## Persistence
+
+Use browser localStorage for saved scenarios and simulation history.
+
+No backend is required for the MVP.
+
+---
+
+# 3. High-Level Architecture
+
+```text
+                    ┌───────────────────────┐
+                    │      React UI         │
+                    │                       │
+                    │ Graph                 │
+                    │ Timeline              │
+                    │ Metrics               │
+                    │ Controls              │
+                    └───────────┬───────────┘
+                                │
+                                ↓
+                    ┌───────────────────────┐
+                    │  Simulation Controller │
+                    └───────────┬───────────┘
+                                │
+                                ↓
+              ┌─────────────────────────────────┐
+              │       Simulation Engine         │
+              │                                 │
+              │ Event Queue                     │
+              │ Dependency Resolver             │
+              │ Failure Propagation             │
+              │ Recovery Manager                 │
+              │ Metrics Calculator               │
+              └───────────────┬─────────────────┘
+                              │
+                              ↓
+                    ┌───────────────────────┐
+                    │ Scenario / Graph Data │
+                    └───────────────────────┘
+
+
+Core Domain Model
+
+The system contains:
+
+Nodes
+Dependencies
+Simulation events
+Node states
+Recovery actions
+Simulation scenarios
+Metrics
+5. Node Model
+
+Each infrastructure service is represented as a node.
+
+type NodeStatus =
+  | "HEALTHY"
+  | "AT_RISK"
+  | "DEGRADED"
+  | "FAILED"
+  | "RECOVERING";
+
+Example:
+
+interface InfrastructureNode {
+  id: string;
+  name: string;
+  type: ServiceType;
+  status: NodeStatus;
+
+  criticality: "LOW" | "MEDIUM" | "HIGH";
+
+  zone: string;
+
+  recoveryTime: number;
+
+  position: {
+    x: number;
+    y: number;
+  };
+}
+
+Example node:
+
+{
+  id: "water-pump-01",
+  name: "Central Water Pump",
+  type: "WATER_PUMP",
+  status: "HEALTHY",
+  criticality: "HIGH",
+  zone: "Central",
+  recoveryTime: 8,
+  position: { x: 400, y: 200 }
+}
+6. Service Types
+
+The initial synthetic city will contain approximately 10–15 nodes.
+
+Recommended service types:
+
+POWER_GRID
+WATER_PUMP
+WATER_DISTRIBUTION
+TELECOM
+TRAFFIC_SIGNALS
+EMERGENCY_DISPATCH
+HOSPITAL
+SEWAGE
+PUBLIC_TRANSPORT
+MUNICIPAL_CONTROL
+FUEL_STATION
+
+These are simulation entities only.
+
+They must not be presented as an actual dependency map of any
+Indian city.
+
+7. Dependency Model
+
+Dependencies are directed edges.
+
+interface DependencyEdge {
+  id: string;
+
+  source: string;
+  target: string;
+
+  propagationDelay: number;
+
+  dependencyType:
+    | "POWER"
+    | "NETWORK"
+    | "WATER"
+    | "OPERATIONAL";
+
+  failureImpact: "DEGRADE" | "FAIL";
+}
+
+Example:
+
+Power Grid
+     │
+     ▼
+Water Pump
+     │
+     ▼
+Water Distribution
+     │
+     ▼
+Hospital
+
+This means failure can propagate downstream.
+
+8. Simulation Clock
+
+The simulation uses a virtual clock.
+
+It must NOT depend on real-world time.
+
+Example:
+
+T+00 min
+T+05 min
+T+10 min
+T+15 min
+
+The engine advances time by processing scheduled events.
+
+Controls:
+
+▶ Play
+⏸ Pause
+⏭ Step
+↻ Reset
+1x / 2x / 4x speed
+9. Event Model
+
+Every state transition is represented as an event.
+
+interface SimulationEvent {
+  id: string;
+
+  timestamp: number;
+
+  type:
+    | "FAILURE_INJECTED"
+    | "STATE_CHANGED"
+    | "FAILURE_PROPAGATED"
+    | "RECOVERY_STARTED"
+    | "RECOVERY_COMPLETED";
+
+  sourceNode?: string;
+
+  targetNode: string;
+
+  previousState: NodeStatus;
+
+  newState: NodeStatus;
+
+  cause?: string;
+}
+
+Example:
+
+T+00  Power Grid FAILED
+T+05  Water Pump FAILED
+T+10  Water Distribution DEGRADED
+T+15  Hospital DEGRADED
+
+The event log is the primary source for the timeline and
+explainability UI.
+
+10. Event Queue
+
+The engine uses a deterministic priority queue.
+
+Events are ordered by:
+
+Simulation timestamp
+Event priority
+Stable event ID
+
+Example:
+
+Event Queue
+
+T+05  Water Pump failure
+T+05  Telecom degradation
+T+10  Water Distribution failure
+T+12  Emergency Dispatch degradation
+
+Same-timestamp events must always be processed in the same order.
+
+This guarantees reproducibility.
+
+11. Failure Injection
+
+The user can select one or more initial failures.
+
+Example:
+
+Initial Failures:
+
+☑ Power Grid
+☑ Telecom
+
+Simulation Start
+
+All initial failures occur at:
+
+T+00
+
+The engine creates one initial event for each selected node.
+
+12. Failure Propagation Algorithm
+
+When a node fails:
+
+Find all downstream nodes.
+Check their dependency states.
+Determine the resulting state.
+Schedule the state transition using the configured propagation delay.
+Add the transition to the event queue.
+Continue until no new downstream transitions are produced.
+
+Example:
+
+Power Grid FAILED
+        ↓ +5 min
+Water Pump FAILED
+        ↓ +5 min
+Water Distribution FAILED
+        ↓ +5 min
+Hospital DEGRADED
+13. Multiple Simultaneous Failures
+
+Multiple failures occurring at the same timestamp must be processed
+as one simulation batch.
+
+Example:
+
+T+00
+
+Power Grid FAILED
+Telecom FAILED
+
+If both affect Emergency Dispatch:
+
+Power Grid ─────┐
+                ├──> Emergency Dispatch
+Telecom ────────┘
+
+Emergency Dispatch must receive one combined state evaluation.
+
+It must NOT be counted twice.
+
+14. Multi-Dependency Rule
+
+For the MVP, the worst dependency state determines the resulting
+state.
+
+Example:
+
+Power = FAILED
+Telecom = HEALTHY
+
+Result:
+
+Emergency Dispatch = DEGRADED
+
+If:
+
+Power = FAILED
+Telecom = FAILED
+
+Result:
+
+Emergency Dispatch = FAILED
+
+This rule is deterministic and easy to explain during the demo.
+
+15. State Transition Rules
+HEALTHY → AT_RISK
+
+A dependency becomes degraded or unavailable but the node can
+temporarily continue operating.
+
+AT_RISK → DEGRADED
+
+Dependency disruption persists beyond the configured threshold.
+
+DEGRADED → FAILED
+
+Required dependency remains unavailable beyond the failure threshold.
+
+FAILED → RECOVERING
+
+A recovery action is initiated.
+
+RECOVERING → HEALTHY
+
+Configured recovery duration completes.
+
+The MVP must not allow:
+
+FAILED → HEALTHY
+
+without passing through:
+
+RECOVERING
+16. Recovery Manager
+
+The system supports recovery actions.
+
+MVP actions:
+
+REPAIR
+BACKUP_POWER
+RESTORE_NETWORK
+ISOLATE_SERVICE
+
+Example:
+
+Power Grid FAILED
+        ↓
+Backup Power activated
+        ↓
+Hospital RECOVERING
+        ↓
+Hospital HEALTHY
+
+Recovery actions must create events in the event log.
+
+17. Metrics Engine
+
+The engine calculates three mandatory metrics.
+
+Cascade Depth
+
+Longest dependency path reached by the cascade.
+
+Example:
+
+Power
+ ↓
+Water Pump
+ ↓
+Water Distribution
+ ↓
+Hospital
+
+Cascade Depth = 3
+
+Initial failure has depth 0.
+
+Affected Services
+
+Count of downstream services that entered a non-healthy state.
+
+Initial failed nodes are excluded.
+
+Example:
+
+Initial:
+Power
+
+Affected:
+Water Pump
+Water Distribution
+Hospital
+
+Affected Services = 3
+Recovery Time
+
+Time between failure and successful recovery.
+
+Example:
+
+Hospital FAILED at T+15
+Hospital HEALTHY at T+35
+
+Recovery Time = 20 minutes
+18. Explainability Engine
+
+Every non-healthy state should have a causal explanation.
+
+Example:
+
+Why is Hospital degraded?
+
+Because:
+Power Grid failed at T+00
+        ↓
+Water Pump failed at T+05
+        ↓
+Water Distribution failed at T+10
+        ↓
+Hospital degraded at T+15
+
+The engine should store the causal parent/event reference.
+
+19. Graph Visualization
+
+Use React Flow to render:
+
+[Power Grid]
+     │
+     ▼
+[Water Pump]
+     │
+     ▼
+[Water Distribution]
+     │
+     ▼
+[Hospital]
+
+Node colors:
+
+HEALTHY      → green
+AT_RISK      → yellow
+DEGRADED     → orange
+FAILED       → red
+RECOVERING   → blue
+
+Edges should visually indicate active propagation when a failure
+moves through them.
+
+Avoid excessive animation.
+
+20. Simulation Dashboard
+
+Main simulator screen:
+
+┌─────────────────────────────────────────────────────────────┐
+│ URBAN RESILIENCE SIMULATOR                  T+15 MIN        │
+├───────────────┬─────────────────────────────┬───────────────┤
+│               │                             │               │
+│ Scenario      │                             │   Metrics     │
+│ Controls      │       GRAPH                 │               │
+│               │                             │ Cascade Depth │
+│ Failures      │   infrastructure            │ Affected      │
+│ Recovery      │       graph                 │ Recovery Time │
+│               │                             │               │
+├───────────────┴─────────────────────────────┴───────────────┤
+│                     EVENT TIMELINE                           │
+└─────────────────────────────────────────────────────────────┘
+21. Scenario Model
+interface SimulationScenario {
+  id: string;
+
+  name: string;
+
+  graphVersion: string;
+
+  initialFailures: string[];
+
+  recoveryActions: RecoveryAction[];
+
+  configuration: SimulationConfig;
+}
+
+Example:
+
+Scenario:
+"Central Power Failure"
+
+Initial Failure:
+Power Grid
+
+Recovery:
+Backup Power at T+12
+22. Reproducibility
+
+The same scenario must produce the same event sequence.
+
+The engine must avoid:
+
+Math.random()
+
+or any other uncontrolled randomness.
+
+All ordering must use deterministic sorting.
+
+Example:
+
+Scenario A
+     ↓
+Run 1
+     ↓
+Event Log X
+
+Scenario A
+     ↓
+Run 2
+     ↓
+Event Log X
+
+Both logs must be identical.
+
+23. Scenario Storage
+
+For the MVP use:
+
+localStorage
+
+Store:
+
+Scenario definition
+Graph version
+Initial failures
+Recovery actions
+Simulation parameters
+Event log
+Metrics
+
+No backend is required.
+
+24. Scenario Comparison
+
+If time permits, support:
+
+WITHOUT RECOVERY       WITH BACKUP POWER
+
+Cascade Depth: 5       Cascade Depth: 3
+Affected: 8             Affected: 4
+Recovery: 42 min        Recovery: 20 min
+
+This is an important hackathon demonstration because it proves
+that recovery decisions change system outcomes.
+
+25. File / Module Architecture
+src/
+│
+├── types/
+│   ├── node.ts
+│   ├── edge.ts
+│   ├── event.ts
+│   ├── scenario.ts
+│   └── simulation.ts
+│
+├── data/
+│   ├── cityGraph.ts
+│   ├── scenarios.ts
+│   └── simulationConfig.ts
+│
+├── engine/
+│   ├── SimulationEngine.ts
+│   ├── EventQueue.ts
+│   ├── DependencyResolver.ts
+│   ├── FailurePropagation.ts
+│   ├── RecoveryManager.ts
+│   └── MetricsCalculator.ts
+│
+├── components/
+│   ├── graph/
+│   ├── simulation/
+│   ├── metrics/
+│   ├── timeline/
+│   ├── recovery/
+│   └── scenarios/
+│
+├── pages/
+│   ├── DashboardPage.tsx
+│   └── SimulatorPage.tsx
+│
+├── hooks/
+│   └── useSimulation.ts
+│
+└── utils/
+    ├── formatTime.ts
+    └── deterministicSort.ts
+26. Engine/UI Boundary
+
+The engine must expose a clean interface.
+
+Example:
+
+interface SimulationEngine {
+  initialize(scenario: SimulationScenario): void;
+
+  step(): SimulationState;
+
+  run(): SimulationState;
+
+  pause(): void;
+
+  reset(): void;
+
+  injectFailure(nodeId: string): void;
+
+  applyRecovery(action: RecoveryAction): void;
+
+  getMetrics(): SimulationMetrics;
+
+  getEvents(): SimulationEvent[];
+}
+
+React components should consume these outputs rather than implementing
+simulation logic themselves.
+
+27. Performance Requirements
+
+The MVP targets approximately:
+
+10–15 infrastructure nodes
+15–30 dependency edges
+
+The simulation should run entirely in the browser.
+
+Normal simulation operations should feel instantaneous for the MVP
+graph size.
+
+No optimization for thousands of nodes is required.
+
+28. Testing Requirements
+
+Minimum tests:
+
+Test 1 — Single Failure
+Power FAILED
+↓
+Water Pump FAILED
+↓
+Water Distribution FAILED
+
+Verify correct propagation timing.
+
+Test 2 — Multiple Failures
+Power FAILED
+Telecom FAILED
+
+Verify shared dependents are processed once.
+
+Test 3 — Recovery
+
+Verify:
+
+FAILED → RECOVERING → HEALTHY
+Test 4 — Metrics
+
+Verify:
+
+Cascade Depth
+Affected Services
+Recovery Time
+Test 5 — Reproducibility
+
+Run identical scenario twice.
+
+Expected:
+
+EventLog1 === EventLog2
+29. Error Handling
+
+The application must gracefully handle:
+
+Invalid scenario
+Missing node
+Invalid dependency
+Duplicate node IDs
+Circular dependency definitions
+Invalid recovery action
+Empty simulation
+
+Circular dependencies should be detected during scenario validation.
+
+Example:
+
+A → B
+B → C
+C → A
+
+The scenario should be marked invalid instead of causing an infinite
+simulation loop.
+
+30. Security & Data Boundary
+
+This project does not require sensitive real-world infrastructure
+data.
+
+The MVP must:
+
+Use synthetic data only.
+Avoid real government credentials.
+Avoid real infrastructure control.
+Avoid claims of real-time municipal monitoring.
+Keep simulation data local.
+31. Implementation Priority
+P0 — Mandatory
+Graph model
+↓
+Simulation clock
+↓
+Event queue
+↓
+Failure propagation
+↓
+Multiple failures
+↓
+Recovery
+↓
+Metrics
+↓
+Timeline
+↓
+Reproducibility
+P1 — Important
+Professional graph UI
+Scenario selection
+Scenario save/replay
+Explainability panel
+Scenario comparison
+P2 — Polish
+AI incident summary
+3D/isometric visualization
+Advanced animations
+Additional recovery strategies
+
+The simulation engine must be completed before P2 visual features.
+
+32. Definition of Technical Completion
+
+The technical implementation is considered complete when:
+
+A synthetic city graph loads successfully.
+A user can inject one or multiple failures.
+Failures propagate according to dependency and time rules.
+Simulated time can be controlled.
+Recovery actions work.
+Metrics are calculated correctly.
+Every transition has an explainable cause.
+Scenarios can be replayed.
+Identical scenarios produce identical event logs.
+The application builds successfully with zero TypeScript errors.
+33. Important Implementation Rule
+
+Do NOT over-engineer the MVP.
+
+Do not add:
+
+Microservices
+Kubernetes
+Real-time IoT integrations
+Complex databases
+Machine-learning prediction models
+Real municipal APIs
+Physically accurate infrastructure equations
+
+The objective is to demonstrate a correct, deterministic and
+explainable cascade simulation with a strong visual interface.
+
+34. Recommended Build Sequence
+Step 1
+Create types
+
+↓
+
+Step 2
+Create synthetic city graph
+
+↓
+
+Step 3
+Build SimulationEngine
+
+↓
+
+Step 4
+Build EventQueue
+
+↓
+
+Step 5
+Implement failure propagation
+
+↓
+
+Step 6
+Implement simultaneous failures
+
+↓
+
+Step 7
+Implement recovery
+
+↓
+
+Step 8
+Implement metrics
+
+↓
+
+Step 9
+Write engine tests
+
+↓
+
+Step 10
+Build React Flow graph
+
+↓
+
+Step 11
+Build timeline
+
+↓
+
+Step 12
+Build metrics dashboard
+
+↓
+
+Step 13
+Add scenario save/replay
+
+↓
+
+Step 14
+Add scenario comparison
+
+↓
+
+Step 15
+UI polish
+
+↓
+
+Step 16
+Final demo testing
+35. Final Technical Principle
+
+The system should follow:
+
+INPUT
+  ↓
+Scenario
+  ↓
+Deterministic Simulation Engine
+  ↓
+Events + State Changes
+  ↓
+Metrics + Causal Explanation
+  ↓
+Visualization
+
+The UI must never become the source of truth.
+
+Simulation state and event history are the source of truth.
+
+
+## Deterministic Event Processing
+
+The simulation engine shall use a deterministic event queue.
+
+Events shall be ordered by:
+
+1. simulated timestamp
+2. event priority/type
+3. stable event identifier
+
+The engine must not use `Math.random()`, `Date.now()`,
+network-dependent values, or UI rendering order to determine
+simulation results.
+
+
+## Engine/UI Separation
+
+The simulation engine must not depend on:
+
+- React components
+- React Flow
+- DOM APIs
+- browser rendering state
+
+React UI communicates with the engine through a controller/hook layer.
+
+The engine remains responsible for simulation truth.
+
+
+## Testing Requirements
+
+The engine should include tests for:
+
+- single failure propagation
+- multi-hop cascade
+- simultaneous failures
+- shared dependency handling
+- recovery
+- repeated recovery/failure
+- cascade depth calculation
+- affected-service calculation
+- recovery-time calculation
+- scenario replay determinism
+- circular dependency rejection

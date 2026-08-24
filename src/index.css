@@ -1,0 +1,121 @@
+@import "@xyflow/react/dist/style.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-heading: 'Outfit', sans-serif;
+    --font-sans: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --bg-cream: #FDF4D2;
+    --text-charcoal: #1F1F24;
+    --color-softblue: #B0CDE6;
+    --color-mutedpurple: #A290B7;
+    --color-dustybrown: #946D6D;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #FDF4D2;
+    color: #1F1F24;
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-heading);
+    color: #1F1F24;
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Command Center Grid Background on Warm Cream Canvas */
+.bg-cream-grid {
+  background-color: #FDF4D2;
+  background-image: 
+    linear-gradient(rgba(31, 31, 36, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 31, 36, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.bg-cream-dots {
+  background-image: radial-gradient(rgba(31, 31, 36, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Charcoal Blueprint Grid */
+.bg-charcoal-grid {
+  background-color: #1F1F24;
+  background-image: 
+    linear-gradient(rgba(176, 205, 230, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(176, 205, 230, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Professional Command Center Cards & Panels */
+.command-card {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(31, 31, 36, 0.12);
+  box-shadow: 0 4px 16px -2px rgba(31, 31, 36, 0.06), 0 1px 3px 0 rgba(31, 31, 36, 0.04);
+}
+
+.command-card-cream {
+  background-color: #F7EBC0;
+  border: 1px solid rgba(31, 31, 36, 0.14);
+}
+
+.command-card-dark {
+  background-color: #1F1F24;
+  color: #FDF4D2;
+  border: 1px solid rgba(176, 205, 230, 0.18);
+}
+
+/* Custom React Flow overrides for Light/Cream Canvas */
+.react-flow__background {
+  background-color: #FDF4D2 !important;
+}
+
+.react-flow__controls {
+  box-shadow: 0 4px 16px rgba(31, 31, 36, 0.12) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(31, 31, 36, 0.18) !important;
+  background: #FFFFFF !important;
+}
+
+.react-flow__controls-button {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid rgba(31, 31, 36, 0.1) !important;
+  fill: #1F1F24 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #FDF4D2 !important;
+  fill: #1F1F24 !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FDF4D2;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CDB874;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A290B7;
+}

@@ -1,0 +1,934 @@
+# Implementation Plan — Urban Infrastructure Cascade Simulator (S-03)
+
+This document converts the PRD, TRD, Architecture, UI/UX, Test Plan,
+and Data Model into an executable development plan.
+
+The project will be developed in small verified stages.
+
+Core principle:
+
+> Build the simulation engine first, connect the UI second, add visual
+> polish only after the core system is correct.
+
+---
+
+# 1. Development Strategy
+
+The implementation will follow this order:
+
+```text
+Project Setup
+      ↓
+Data Model
+      ↓
+Graph Engine
+      ↓
+Simulation Engine
+      ↓
+Event System
+      ↓
+Cascade Propagation
+      ↓
+Metrics
+      ↓
+Recovery
+      ↓
+Scenario Replay
+      ↓
+API / State Integration
+      ↓
+Main UI
+      ↓
+Graph Visualization
+      ↓
+Timeline + Inspector
+      ↓
+Polish
+      ↓
+Testing
+      ↓
+Demo
+
+The simulation engine must remain independent from the visual layer.
+
+2. MVP Boundary
+
+The MVP must demonstrate all core requirements from the problem statement:
+
+Dynamic infrastructure graph
+Time-dependent state
+Failure propagation
+Multiple simultaneous disruptions
+Failure recovery
+Cascade depth
+Affected services
+Recovery time
+Reproducible scenarios
+
+Everything else is secondary.
+
+3. Phase 1 — Project Setup
+Objective
+
+Create the basic application structure.
+
+Tasks:
+
+Initialize frontend
+Configure TypeScript
+Configure styling system
+Create source directories
+Configure development scripts
+Configure testing framework
+Verify production build
+
+Recommended structure:
+
+src/
+├── components/
+├── pages/
+├── simulation/
+├── data/
+├── types/
+├── hooks/
+├── utils/
+└── styles/
+
+Acceptance:
+
+npm run dev      → works
+npm run build    → succeeds
+npm run test     → succeeds
+4. Phase 2 — Data Model
+Objective
+
+Implement the structures defined in 07_DATA_MODEL.md.
+
+Create:
+
+types/
+├── node.ts
+├── edge.ts
+├── scenario.ts
+├── event.ts
+├── recovery.ts
+└── simulation.ts
+
+Implement:
+
+ServiceNode
+DependencyEdge
+Scenario
+InitialFailure
+RecoveryAction
+SimulationEvent
+SimulationState
+SimulationMetrics
+
+Acceptance:
+
+TypeScript compilation succeeds.
+No duplicated type definitions.
+Simulation logic does not depend on UI components.
+5. Phase 3 — Synthetic City Graph
+Objective
+
+Create the initial synthetic infrastructure graph.
+
+Target:
+
+10–15 nodes
+
+Example:
+
+Power Grid
+Water Pump
+Water Distribution
+Telecom
+Traffic Signals
+Emergency Dispatch
+Hospital
+Sewage System
+Public Transport
+Fuel Station
+Municipal Control
+
+Example dependency graph:
+
+                    POWER GRID
+                   /    |     \
+                  ↓     ↓      ↓
+             WATER    TRAFFIC  SEWAGE
+              PUMP     SIGNAL
+                ↓
+          WATER DISTRIBUTION
+                ↓
+             HOSPITAL
+                ↑
+        EMERGENCY DISPATCH
+                ↑
+             TELECOM
+
+All infrastructure is synthetic.
+
+No real municipal dependency should be claimed.
+
+Acceptance:
+
+Graph loads successfully.
+Every edge references valid nodes.
+No duplicate IDs.
+Graph validation succeeds.
+6. Phase 4 — Graph Validation
+Objective
+
+Validate scenario definitions before simulation starts.
+
+Validation checks:
+
+Duplicate node
+Missing node reference
+Invalid edge
+Invalid delay
+Invalid state
+Circular dependency
+Invalid scenario
+
+Example:
+
+Power → Water → Hospital → Power
+
+should produce:
+
+Circular dependency detected.
+
+Acceptance:
+
+Invalid graphs cannot start simulation.
+
+7. Phase 5 — Simulation State
+Objective
+
+Create the runtime state of the graph.
+
+Initial state:
+
+All nodes = HEALTHY
+Current time = 0
+Event history = []
+Metrics = 0
+
+The engine must create a fresh runtime state for every simulation run.
+
+Important:
+
+Original Scenario
+       ↓
+Create Runtime State
+
+Never mutate the original scenario.
+
+8. Phase 6 — Event Engine
+Objective
+
+Create the deterministic event-processing system.
+
+Basic structure:
+
+Event Queue
+     ↓
+Get earliest event
+     ↓
+Advance simulation time
+     ↓
+Process event
+     ↓
+Update state
+     ↓
+Schedule new events
+     ↓
+Record event
+     ↓
+Repeat
+
+Events must be ordered deterministically.
+
+Example:
+
+T+0  Power failure
+T+5  Water Pump failure
+T+10 Water Distribution degraded
+T+15 Hospital degraded
+9. Phase 7 — Failure Injection
+Objective
+
+Allow the user to introduce initial disruptions.
+
+Single failure:
+
+Power Grid → FAILED at T+0
+
+Multiple failures:
+
+Power Grid → FAILED at T+0
+Telecom → FAILED at T+0
+
+Multiple failures occurring at the same timestamp must be processed as one
+logical batch.
+
+Acceptance:
+
+Initial failure is recorded.
+State becomes FAILED.
+Event appears in timeline.
+Simulation starts from T+0.
+10. Phase 8 — Cascade Propagation
+Objective
+
+Implement the core problem-solving logic.
+
+When a node fails:
+
+Find outgoing dependencies
+        ↓
+Check dependent node
+        ↓
+Schedule propagation event
+        ↓
+Apply state transition
+        ↓
+Continue downstream
+
+Example:
+
+Power Grid
+     ↓
+Water Pump
+     ↓
+Water Distribution
+     ↓
+Hospital
+
+Power failure should propagate through the configured graph.
+
+The propagation delay must come from scenario configuration.
+
+11. Phase 9 — Multiple Failure Handling
+Objective
+
+Correctly handle multiple simultaneous disruptions.
+
+Example:
+
+Power Grid ─────┐
+                ↓
+            Emergency
+            Dispatch
+                ↑
+Telecom ────────┘
+
+At T+0:
+
+Power = FAILED
+Telecom = FAILED
+
+Emergency Dispatch must be evaluated correctly without duplicate events.
+
+Acceptance:
+
+Emergency Dispatch
+
+appears only once in affected-service metrics.
+
+12. Phase 10 — State Transition Rules
+
+Implement deterministic state transitions.
+
+Example:
+
+HEALTHY
+   ↓
+AT_RISK
+   ↓
+DEGRADED
+   ↓
+FAILED
+
+Recovery:
+
+FAILED
+   ↓
+RECOVERING
+   ↓
+HEALTHY
+
+The exact transition logic must remain centralized in the simulation
+engine.
+
+Do not implement state logic separately inside UI components.
+
+13. Phase 11 — Metrics Engine
+Objective
+
+Calculate required hackathon metrics.
+
+Cascade Depth
+
+Longest causal path from an initial failure.
+
+Example:
+
+Power
+ ↓
+Pump
+ ↓
+Water
+ ↓
+Hospital
+
+Result:
+
+Cascade Depth = 3
+Affected Services
+
+Count downstream nodes that became non-healthy.
+
+Initial failure is excluded.
+
+Recovery Time
+
+Calculate simulated recovery duration according to the metric definition
+locked in the PRD.
+
+Acceptance:
+
+Metrics must match the event history.
+
+14. Phase 12 — Recovery System
+Objective
+
+Allow intervention during simulation.
+
+Initial recovery actions:
+
+REPAIR
+BACKUP_POWER
+ISOLATE
+
+Example:
+
+Water Pump
+     ↓
+BACKUP POWER
+     ↓
+RECOVERING
+     ↓
+HEALTHY
+
+Recovery must generate events.
+
+Example:
+
+T+20 Recovery Started
+T+30 Recovery Completed
+15. Phase 13 — Scenario System
+Objective
+
+Provide predefined demo scenarios.
+
+Create:
+
+data/scenarios/
+├── power-failure.json
+├── telecom-failure.json
+├── dual-failure.json
+└── recovery-demo.json
+
+Recommended primary demo:
+
+Power Grid Failure
+
+Recommended advanced demo:
+
+Power Grid + Telecom simultaneous failure
+16. Phase 14 — Replay System
+Objective
+
+Allow the user to replay an identical scenario.
+
+Flow:
+
+Completed Scenario
+      ↓
+RESET
+      ↓
+Load Same Scenario
+      ↓
+Run Again
+      ↓
+Compare Event History
+
+Expected:
+
+Run 1 === Run 2
+
+No random behavior should affect the result.
+
+17. Phase 15 — Simulation Controller
+
+Create a controller that exposes:
+
+start()
+pause()
+resume()
+reset()
+step()
+injectFailure()
+applyRecovery()
+replay()
+
+Example conceptual API:
+
+simulation.start();
+simulation.pause();
+simulation.resume();
+simulation.reset();
+
+simulation.injectFailure("power-grid");
+
+simulation.applyRecovery({
+  nodeId: "water-pump",
+  type: "BACKUP_POWER"
+});
+
+The exact implementation may differ according to the chosen architecture.
+
+18. Phase 16 — UI Foundation
+
+Create the main simulator page.
+
+Required areas:
+
+Header
+Simulation Controls
+Infrastructure Graph
+Metrics Panel
+Timeline
+Node Inspector
+Scenario Selector
+
+Initial goal:
+
+Make the complete simulation usable before making it beautiful.
+
+19. Phase 17 — Graph Visualization
+
+Connect the simulation state to the graph UI.
+
+Node appearance must be derived from engine state.
+
+Example:
+
+Engine:
+hospital.state = FAILED
+
+        ↓
+
+UI:
+Hospital node = FAILED visual state
+
+The UI must never independently determine whether a node has failed.
+
+20. Phase 18 — Live Cascade Visualization
+
+During simulation:
+
+Power Grid
+    ↓
+Water Pump
+    ↓
+Water Supply
+    ↓
+Hospital
+
+should visibly update as simulation time advances.
+
+Recommended effects:
+
+State color transition
+Edge highlight during propagation
+Node pulse on state change
+Timeline event animation
+
+Animations are visual only.
+
+They must not control simulation timing.
+
+21. Phase 19 — Timeline
+
+Create chronological event timeline.
+
+Example:
+
+T+00
+Power Grid
+FAILED
+Initial disruption
+
+T+05
+Water Pump
+FAILED
+Cause: Power Grid
+
+T+10
+Water Distribution
+DEGRADED
+Cause: Water Pump
+
+T+15
+Hospital
+DEGRADED
+Cause: Water Distribution
+
+Every important event should be traceable back to its cause.
+
+22. Phase 20 — Node Inspector
+
+Clicking a node should show:
+
+Service Name
+Current State
+Previous State
+Failure Time
+Recovery Time
+Cause
+Upstream Dependency
+
+Example:
+
+HOSPITAL
+
+Status:
+DEGRADED
+
+Cause:
+Water Distribution
+
+Changed:
+T+15
+
+Dependency Chain:
+Power Grid
+   ↓
+Water Pump
+   ↓
+Water Distribution
+   ↓
+Hospital
+23. Phase 21 — Metrics Dashboard
+
+Display:
+
+CASCADE DEPTH
+3
+
+AFFECTED SERVICES
+4
+
+RECOVERY TIME
+18 min
+
+Optional:
+
+Critical Services Affected
+Time to Stabilization
+
+Required metrics must always remain visible after simulation.
+
+24. Phase 22 — Scenario Comparison
+
+If time permits:
+
+WITHOUT RECOVERY
+        VS
+WITH RECOVERY
+
+Example:
+
+Metric              No Recovery    Recovery
+------------------------------------------------
+Cascade Depth            5             3
+Affected Services        7             4
+Recovery Time           32m            18m
+
+This makes the value of intervention immediately understandable.
+
+25. Phase 23 — Visual Polish
+
+Only after all functional requirements work.
+
+Possible improvements:
+
+Dark command-center UI
+Glassmorphism cards
+Subtle grid background
+Smooth transitions
+Better graph layout
+Animated propagation
+Professional typography
+Status indicators
+Micro-interactions
+
+Visual polish must not change simulation behavior.
+
+26. Optional 3D Visualization
+
+3D is not part of the core MVP.
+
+If implementation is stable and time remains, add a small decorative
+isometric city visualization.
+
+Possible elements:
+
+Power Station
+Water Pump
+Hospital
+Telecom Tower
+Traffic Junction
+
+The 3D scene may visually represent the simulated city.
+
+However:
+
+3D visualization
+       ↓
+Optional
+
+not:
+
+3D visualization
+       ↓
+Core simulation engine
+
+The simulator must remain fully functional without 3D.
+
+27. Optional AI Explanation
+
+AI may be used only as a post-simulation explanation layer.
+
+Example:
+
+Input:
+
+Event History
+Metrics
+Causal Chains
+
+AI output:
+
+The power failure affected the water pumping system after 5 simulated
+minutes. This caused degradation in water distribution and subsequently
+affected hospital operations.
+
+AI must not determine:
+
+State transitions
+Cascade depth
+Failure timing
+Recovery timing
+Dependency logic
+
+The simulation engine remains the source of truth.
+
+28. Day 1 Development Plan
+Phase A
+Project Setup
++
+Data Model
++
+Synthetic Graph
+Phase B
+Graph Validation
++
+Simulation State
++
+Event Queue
+Phase C
+Failure Injection
++
+Cascade Propagation
++
+Multiple Failures
+Phase D
+Metrics
++
+Recovery
++
+Scenario Replay
+Day 1 Target
+
+By the end of Day 1:
+
+CLI / Debug Simulation
+        ↓
+Power Failure
+        ↓
+Cascade
+        ↓
+Metrics
+        ↓
+Recovery
+        ↓
+Replay
+
+must work correctly even if the UI is basic.
+
+29. Day 2 Development Plan
+Phase E
+Main UI
++
+Graph Visualization
++
+Simulation Controls
+Phase F
+Timeline
++
+Node Inspector
++
+Metrics Dashboard
+Phase G
+Scenario Selector
++
+Recovery UI
++
+Replay
+Phase H
+Visual Polish
++
+Animations
++
+Optional Comparison
+Phase I
+Testing
++
+Bug Fixes
++
+Production Build
+30. Final Hackathon Demo Preparation
+
+Before the final presentation:
+
+1. Clean database / local state if required
+
+2. Verify predefined scenarios
+
+3. Run primary demo
+
+4. Run simultaneous-failure demo
+
+5. Run recovery demo
+
+6. Run replay test
+
+7. Run production build
+
+8. Verify application starts without errors
+
+9. Prepare backup demo scenario
+
+10. Prepare screenshots/video in case live demo fails
+31. Primary Judge Demo
+
+The recommended 2–3 minute story:
+
+PROBLEM
+   ↓
+Urban services depend on each other.
+   ↓
+A failure in one service can cascade.
+   ↓
+OUR SIMULATOR
+   ↓
+Power Grid failure
+   ↓
+Water Pump failure
+   ↓
+Water Distribution degradation
+   ↓
+Hospital impact
+   ↓
+Metrics
+   ↓
+Recovery action
+   ↓
+Cascade reduced
+   ↓
+Replay
+   ↓
+Same deterministic result
+
+The team should explain the system as a simulator rather than claiming
+that it predicts real-world infrastructure failures.
+
+32. Definition of Implementation Complete
+
+The implementation is considered complete when:
+
+ Project builds successfully
+ Synthetic graph loads
+ Graph validation works
+ Single failure works
+ Multiple simultaneous failures work
+ Time-dependent propagation works
+ Event history works
+ Cascade depth works
+ Affected services works
+ Recovery works
+ Recovery time works
+ Scenario save/load works
+ Replay is deterministic
+ Main UI works
+ Graph visualization works
+ Timeline works
+ Node inspector works
+ Metrics are displayed
+ Reset works
+ Pause/Resume works
+ Production build succeeds
+33. Scope Control Rule
+
+If development time becomes limited:
+
+Remove features in this order:
+
+1. Decorative 3D
+2. AI summary
+3. Advanced animations
+4. Scenario comparison
+5. Advanced styling
+
+Never remove:
+
+Simulation Engine
+Failure Propagation
+Multiple Failures
+Recovery
+Metrics
+Timeline
+Replay
+
+The core simulation is the project.
+
+34. Final Implementation Principle
+
+Build in this order:
+
+CORRECT
+   ↓
+DETERMINISTIC
+   ↓
+EXPLAINABLE
+   ↓
+INTERACTIVE
+   ↓
+BEAUTIFUL

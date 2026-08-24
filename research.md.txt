@@ -1,0 +1,1603 @@
+# Research — Urban Infrastructure Cascade Simulator (S-03)
+
+## Document Purpose
+
+This document defines the problem, engineering interpretation, research findings,
+assumptions, simulation concepts, and recommended scope for building an
+Urban Infrastructure Cascade Simulator for the hackathon.
+
+The goal is to understand the problem correctly before creating the PRD,
+TRD, architecture, and implementation.
+
+---
+
+# 1. Problem Statement
+
+## Official Requirement
+
+Develop an Urban Infrastructure Cascade Simulator that represents
+interdependent urban services as a dynamic graph and simulates how
+disruptions propagate through the system.
+
+The simulator must:
+
+- Represent urban services and dependencies as a dynamic graph.
+- Support time-dependent system state.
+- Simulate failures and recovery actions.
+- Support multiple simultaneous disruptions.
+- Measure cascade depth.
+- Measure affected services.
+- Measure recovery time.
+- Provide reproducible simulation scenarios.
+
+---
+
+# 2. What Problem Are We Actually Solving?
+
+[FACT]
+
+Urban services are interconnected.
+
+A failure in one service can affect other services that depend on it.
+
+For example:
+
+Electricity Failure
+        ↓
+Water Pump Failure
+        ↓
+Water Supply Degradation
+        ↓
+Hospital Service Impact
+
+The important problem is not simply detecting:
+
+> "Electricity is down."
+
+The important problem is understanding:
+
+> "What other services will be affected because electricity is down,
+> through which dependency paths, after how much time, and how can
+> recovery actions limit the cascade?"
+
+[INTERP]
+
+Therefore, this project is a simulation and decision-support system,
+not simply a monitoring dashboard.
+
+---
+
+# 3. Why Traditional Monitoring Is Not Enough
+
+[INTERP]
+
+Traditional monitoring systems often monitor individual services separately.
+
+For example:
+
+Power monitoring:
+    Power = FAILED
+
+Water monitoring:
+    Water = HEALTHY
+
+Telecom monitoring:
+    Telecom = HEALTHY
+
+Each system can know its own status.
+
+However, without a dependency model, the system may not understand:
+
+Power Failure
+    ↓
+Water Pump
+    ↓
+Water Distribution
+    ↓
+Hospital
+
+The simulator provides the missing cross-service dependency view.
+
+It answers:
+
+- What will fail next?
+- Why will it fail?
+- When will it fail?
+- How deep will the cascade go?
+- Which services are most affected?
+- Which recovery action can stop the cascade?
+
+---
+
+# 4. What Is an Urban Service?
+
+[INTERP]
+
+An urban service is a system or infrastructure component that provides
+an important function to citizens or city operations.
+
+Possible services include:
+
+- Electricity
+- Water Pumping
+- Water Distribution
+- Telecom / Network
+- Traffic Signals
+- Emergency Dispatch
+- Hospitals
+- Sewage / Wastewater
+- Public Transport
+- Fuel Stations
+- Municipal Control Systems
+
+These are simulation entities.
+
+They do not represent real operational infrastructure.
+
+---
+
+# 5. What Does "Interdependent" Mean?
+
+[INTERP]
+
+Two services are interdependent when one service requires another
+service to operate.
+
+Example:
+
+Water Pump
+    requires
+Electricity
+
+Therefore:
+
+Electricity → Water Pump
+
+Another example:
+
+Emergency Dispatch
+    requires
+Telecom + Traffic Signals
+
+Therefore:
+
+Telecom → Emergency Dispatch
+
+Traffic Signals → Emergency Dispatch
+
+A service may depend on multiple other services.
+
+---
+
+# 6. Dynamic Graph
+
+[FACT]
+
+The simulator must represent urban services and their dependencies
+as a dynamic graph.
+
+[INTERP]
+
+The graph contains:
+
+## Nodes
+
+Nodes represent services/infrastructure.
+
+Example:
+
+POWER_SUBSTATION
+WATER_PUMP
+WATER_NETWORK
+TELECOM
+HOSPITAL
+TRAFFIC_SIGNAL
+
+## Edges
+
+Edges represent dependencies.
+
+Example:
+
+POWER_SUBSTATION
+        ↓
+WATER_PUMP
+        ↓
+WATER_NETWORK
+        ↓
+HOSPITAL
+
+The graph is dynamic because node states change during simulation.
+
+---
+
+# 7. Node State Model
+
+[REC]
+
+Use a simple state model:
+
+HEALTHY
+DEGRADED
+FAILED
+RECOVERING
+
+Optional:
+
+RESTORED
+
+Example:
+
+T+0:
+Power = HEALTHY
+Water Pump = HEALTHY
+Hospital = HEALTHY
+
+T+5:
+Power = FAILED
+Water Pump = DEGRADED
+
+T+10:
+Water Pump = FAILED
+Water Supply = DEGRADED
+
+T+15:
+Hospital = DEGRADED
+
+This makes the time-based cascade visible.
+
+---
+
+# 8. Failure Propagation
+
+[INTERP]
+
+A failure should not automatically make every dependent node fail
+at the same moment.
+
+Instead, the simulator should apply:
+
+- Dependency relationship
+- Propagation delay
+- Failure threshold
+- Node state
+- Recovery state
+
+Example:
+
+Power fails at T+0.
+
+Water Pump requires Power.
+
+Propagation delay = 5 simulation minutes.
+
+Therefore:
+
+T+0:
+Power → FAILED
+
+T+5:
+Water Pump → FAILED
+
+T+10:
+Water Distribution → DEGRADED
+
+T+15:
+Hospital → DEGRADED
+
+This creates a realistic-looking cascade timeline.
+
+IMPORTANT:
+
+The timing values are simulation parameters.
+
+They are NOT claims about real infrastructure.
+
+---
+
+# 9. Multiple Simultaneous Disruptions
+
+[FACT]
+
+The simulator must support multiple disruptions at the same time.
+
+Example:
+
+T+0:
+
+Electricity = FAILED
+Telecom = FAILED
+
+Both failures can propagate through the graph.
+
+Example:
+
+Electricity
+   ↓
+Water Pump
+   ↓
+Water Supply
+
+Telecom
+   ↓
+Emergency Dispatch
+
+Both cascades may eventually affect:
+
+Hospital
+Emergency Services
+Public Transport
+
+The simulator must merge these effects instead of treating them
+as completely independent simulations.
+
+---
+
+# 10. Shared Dependency Example
+
+A node can depend on multiple services.
+
+Example:
+
+Emergency Dispatch requires:
+
+Telecom
++
+Power
+
+Therefore:
+
+Telecom ─────┐
+             ↓
+        Emergency
+        Dispatch
+             ↑
+Power ───────┘
+
+If either dependency fails:
+
+Emergency Dispatch may become DEGRADED.
+
+If both dependencies fail:
+
+Emergency Dispatch may become FAILED.
+
+This gives the simulator more interesting dependency logic than
+a simple linear chain.
+
+---
+
+# 11. Cascade Depth
+
+[FACT]
+
+The simulator must measure cascade depth.
+
+[INTERP]
+
+Cascade depth means the longest downstream dependency chain
+created by an initial disruption.
+
+Example:
+
+Power
+ ↓
+Water Pump
+ ↓
+Water Supply
+ ↓
+Hospital
+
+Cascade depth = 3 downstream transitions.
+
+The exact counting convention should be documented in the PRD.
+
+Recommended:
+
+Depth 0 = initial disruption
+Depth 1 = directly affected service
+Depth 2 = next dependent service
+Depth 3 = next dependent service
+
+---
+
+# 12. Affected Services
+
+[FACT]
+
+The simulator must measure affected services.
+
+[INTERP]
+
+Affected services are services that move from HEALTHY into
+DEGRADED, FAILED, or another non-healthy state because of
+the simulated disruption.
+
+Example:
+
+Initial failure:
+
+Power
+
+Affected:
+
+Water Pump
+Water Supply
+Hospital
+Traffic Signals
+
+Affected Services = 4
+
+Recommended UI:
+
+Affected Services
+      4
+
+and show the actual affected nodes.
+
+---
+
+# 13. Recovery Time
+
+[FACT]
+
+The simulator must measure recovery time.
+
+[INTERP]
+
+Recovery time is the simulated duration required for a failed
+service or the overall system to return to a defined healthy state.
+
+Example:
+
+Power fails at:
+
+T+0
+
+Recovery starts:
+
+T+20
+
+Power restored:
+
+T+30
+
+Recovery time:
+
+10 simulation minutes
+
+The UI should show:
+
+Recovery Time
+00:10
+
+The system should also be able to show:
+
+- Time to first failure
+- Time to peak impact
+- Time to recovery
+
+---
+
+# 14. Recovery Actions
+
+[FACT]
+
+The simulator must support recovery actions.
+
+[INTERP]
+
+Recovery actions are interventions that attempt to restore or
+protect infrastructure.
+
+Examples:
+
+- Restore power
+- Activate backup generator
+- Restore telecom
+- Reroute water supply
+- Activate emergency control
+- Isolate failed node
+- Restore a damaged infrastructure component
+
+Example:
+
+Without recovery:
+
+Power
+ ↓
+Water Pump
+ ↓
+Water Supply
+ ↓
+Hospital
+ ↓
+Emergency Services
+
+With recovery:
+
+Power fails
+ ↓
+Backup generator activated
+ ↓
+Water Pump remains operational
+ ↓
+Cascade stopped
+
+This is one of the most important parts of the demo.
+
+---
+
+# 15. Simulation Scenarios
+
+[FACT]
+
+The simulator must provide reproducible simulation scenarios.
+
+[INTERP]
+
+A scenario should contain:
+
+- Scenario name
+- Graph configuration
+- Initial failures
+- Simulation start time
+- Propagation rules
+- Recovery actions
+- Random seed, if randomness is ever introduced
+
+Example:
+
+Scenario:
+"Monsoon Power Failure"
+
+Initial failures:
+POWER_SUBSTATION_01
+
+Duration:
+60 simulation minutes
+
+Recovery:
+Backup Generator at T+15
+
+Running the same scenario with the same configuration
+must produce the same result.
+
+---
+
+# 16. Deterministic Simulation
+
+[REC]
+
+The first version should be deterministic.
+
+Avoid unnecessary randomness.
+
+Same:
+
+Graph
++
+Initial failures
++
+Parameters
++
+Recovery actions
+
+should produce:
+
+Same timeline
+Same cascade depth
+Same affected services
+Same recovery time
+
+This makes the demo reproducible and easier to debug.
+
+---
+
+# 17. India-Specific Synthetic City Model
+
+[ASSUMPTION]
+
+The project should be designed for an Indian urban context.
+
+However:
+
+IMPORTANT:
+
+The simulation must NOT claim that the dependency graph represents
+an actual Indian city's infrastructure.
+
+Use a fictional/synthetic city.
+
+Example:
+
+"Navapur Smart City"
+
+or
+
+"JanNagar"
+
+The city can visually resemble a modern Indian city while
+the infrastructure dependencies remain synthetic.
+
+Do not claim:
+
+"Real Mumbai power network"
+
+"Real Nagpur water dependency"
+
+"Real government infrastructure data"
+
+unless verified through an appropriate public source.
+
+---
+
+# 18. Recommended Synthetic Infrastructure Graph
+
+[REC]
+
+Start with approximately 10–15 important nodes.
+
+Example:
+
+POWER GRID
+   ↓
+WATER PUMP
+   ↓
+WATER DISTRIBUTION
+   ↓
+HOSPITAL
+
+POWER GRID
+   ↓
+TRAFFIC SIGNALS
+   ↓
+ROAD OPERATIONS
+
+TELECOM
+   ↓
+EMERGENCY DISPATCH
+
+POWER GRID
+   ↓
+TELECOM
+
+TELECOM + POWER
+   ↓
+EMERGENCY SERVICES
+
+POWER + TELECOM
+   ↓
+PUBLIC TRANSPORT CONTROL
+
+This creates multiple paths instead of one simple chain.
+
+---
+
+# 19. Recommended Demo Scenario
+
+[REC]
+
+The primary demo should be:
+
+## Scenario: Major Power Substation Failure
+
+At T+0:
+
+POWER_SUBSTATION_01
+→ FAILED
+
+Then simulate propagation.
+
+Example:
+
+T+0
+Power Substation → FAILED
+
+T+5
+Water Pump → DEGRADED
+
+T+10
+Water Pump → FAILED
+
+T+15
+Water Distribution → DEGRADED
+
+T+20
+Hospital → DEGRADED
+
+T+25
+Emergency Services → DEGRADED
+
+The UI should animate this progression.
+
+---
+
+# 20. Better Demo Scenario — Multi-Failure
+
+[REC]
+
+A second scenario can demonstrate the required
+multiple simultaneous disruptions.
+
+At T+0:
+
+POWER_SUBSTATION_01 → FAILED
+TELECOM_NODE_01 → FAILED
+
+The simulator then shows two cascades
+merging into shared dependent services.
+
+This demonstrates that the project satisfies:
+
+"Support multiple simultaneous disruptions."
+
+---
+
+# 21. Simulation Engine
+
+[REC]
+
+The core engine can use discrete simulation ticks.
+
+Example:
+
+simulationTime = 0
+
+Every tick:
+
+1. Find failed/degraded nodes.
+2. Check dependent nodes.
+3. Apply dependency rules.
+4. Apply propagation delays.
+5. Update node states.
+6. Apply scheduled recovery actions.
+7. Record state changes.
+8. Calculate metrics.
+9. Advance simulation time.
+
+Example:
+
+T+0
+ ↓
+Evaluate dependencies
+ ↓
+Schedule next failures
+ ↓
+T+5
+ ↓
+Apply failures
+ ↓
+Evaluate dependencies
+ ↓
+T+10
+ ↓
+Continue
+
+This is sufficient for a hackathon prototype.
+
+---
+
+# 22. Dependency Rules
+
+[REC]
+
+Each dependency edge should contain information such as:
+
+{
+  source: "POWER",
+  target: "WATER_PUMP",
+  dependencyType: "REQUIRES",
+  propagationDelay: 5,
+  failureThreshold: 1
+}
+
+Possible dependency types:
+
+REQUIRES
+SUPPORTS
+COMMUNICATES_WITH
+CONTROLS
+BACKUP_FOR
+
+For the first version, only REQUIRES is necessary.
+
+Additional types can be added if time permits.
+
+---
+
+# 23. Failure Rule
+
+[REC]
+
+Simple initial rule:
+
+If a required dependency fails,
+the dependent service becomes DEGRADED.
+
+If all critical dependencies fail,
+the dependent service becomes FAILED.
+
+Example:
+
+Hospital requires:
+
+Power
+Water
+
+Case 1:
+
+Power = FAILED
+Water = HEALTHY
+
+Hospital = DEGRADED
+
+Case 2:
+
+Power = FAILED
+Water = FAILED
+
+Hospital = FAILED
+
+This gives the simulator meaningful behavior without requiring
+complex mathematical infrastructure models.
+
+---
+
+# 24. Recovery Rule
+
+[REC]
+
+When a dependency is restored:
+
+The dependent service should not necessarily become HEALTHY
+immediately.
+
+Possible transition:
+
+FAILED
+ ↓
+RECOVERING
+ ↓
+HEALTHY
+
+This allows recovery time to be simulated.
+
+Example:
+
+Power restored at T+30.
+
+Water Pump:
+
+T+30 → RECOVERING
+
+T+35 → HEALTHY
+
+---
+
+# 25. System-Level Metrics
+
+The dashboard should show:
+
+## Active Failures
+
+Number of currently failed services.
+
+## Affected Services
+
+Total services affected during the scenario.
+
+## Cascade Depth
+
+Longest propagation chain.
+
+## Peak Impact
+
+Maximum number of simultaneously affected services.
+
+## Recovery Time
+
+Time required for system recovery.
+
+## System Resilience
+
+Optional score based on service availability over time.
+
+Example:
+
+System Resilience
+78%
+
+IMPORTANT:
+
+If a resilience score is introduced,
+the formula must be explicitly documented.
+
+Do not invent a scientific claim for the score.
+
+---
+
+# 26. Cascade Timeline
+
+[REC]
+
+A major UI feature should be a timeline.
+
+Example:
+
+00:00  POWER FAILURE
+       ↓
+00:05  WATER PUMP DEGRADED
+       ↓
+00:10  WATER PUMP FAILED
+       ↓
+00:15  WATER NETWORK DEGRADED
+       ↓
+00:20  HOSPITAL DEGRADED
+       ↓
+00:25  EMERGENCY SERVICE DEGRADED
+       ↓
+00:30  BACKUP POWER ACTIVATED
+       ↓
+00:35  WATER PUMP RECOVERING
+       ↓
+00:40  WATER SERVICE RESTORED
+
+This helps judges understand the simulation immediately.
+
+---
+
+# 27. Graph Visualization
+
+[REC]
+
+The main interface should visually display:
+
+Nodes = Urban services
+
+Edges = Dependencies
+
+Node colors/states:
+
+HEALTHY
+DEGRADED
+FAILED
+RECOVERING
+
+When a failure propagates:
+
+The affected edge/path should visually highlight.
+
+Example:
+
+POWER 🔴
+   │
+   ▼
+WATER PUMP 🔴
+   │
+   ▼
+WATER 🔴
+   │
+   ▼
+HOSPITAL 🟠
+
+This provides instant visual understanding.
+
+---
+
+# 28. What Makes This Different From a Dashboard?
+
+A normal dashboard says:
+
+Power: DOWN
+Water: DOWN
+Hospital: DEGRADED
+
+Our simulator says:
+
+Power failed at T+0.
+
+Because Water Pump depends on Power,
+Water Pump failed at T+5.
+
+Because Water Supply depends on Water Pump,
+Water Supply degraded at T+10.
+
+Because Hospital depends on Water,
+Hospital degraded at T+15.
+
+Therefore:
+
+Cascade Depth = 3
+Affected Services = 3
+Peak Impact = 3
+
+This causal explanation is the core value of the project.
+
+---
+
+# 29. Explainability
+
+[REC]
+
+Every failure should have a reason.
+
+Example:
+
+Hospital → DEGRADED
+
+Reason:
+
+"Water Distribution failed at T+10.
+Hospital requires Water Distribution."
+
+The UI should allow judges to inspect:
+
+WHAT FAILED?
+WHEN?
+WHY?
+WHAT DEPENDENCY CAUSED IT?
+WHAT RECOVERY ACTION CAN STOP IT?
+
+---
+
+# 30. Scenario Comparison
+
+[REC]
+
+A strong hackathon feature is:
+
+## Compare Scenarios
+
+Scenario A:
+
+No recovery action.
+
+Result:
+8 services affected
+Cascade depth: 5
+Recovery: 52 min
+
+Scenario B:
+
+Backup generator activated at T+10.
+
+Result:
+3 services affected
+Cascade depth: 2
+Recovery: 25 min
+
+This demonstrates that the simulator is not just
+visualizing failure.
+
+It helps evaluate response strategies.
+
+---
+
+# 31. Optional Criticality Analysis
+
+[REC]
+
+The simulator can calculate which nodes are highly important.
+
+Example:
+
+If POWER_SUBSTATION_01 fails:
+
+8 services affected.
+
+If TELECOM_NODE_01 fails:
+
+3 services affected.
+
+Therefore:
+
+POWER_SUBSTATION_01 has higher simulated impact
+in this scenario.
+
+IMPORTANT:
+
+Call this:
+
+"Simulated Impact"
+
+not:
+
+"Real-world criticality."
+
+---
+
+# 32. Research Findings
+
+Recent research supports the fundamental architecture of this project.
+
+Research on interdependent urban infrastructure commonly models
+power, water, transportation, communication and other systems
+as interconnected or multilayer networks rather than isolated systems. :contentReference[oaicite:1]{index=1}
+
+Research also shows that dependencies between infrastructure
+systems can significantly influence cascade behavior and overall
+network robustness. :contentReference[oaicite:2]{index=2}
+
+Recent work has explored dynamic cascading failure simulation
+across electricity, water and telecommunications, including
+time-evolving failure chains and recovery behavior. :contentReference[oaicite:3]{index=3}
+
+Research published in 2025 also explores predicting cascade
+failures in interdependent urban infrastructure networks using
+heterogeneous graph-based approaches. :contentReference[oaicite:4]{index=4}
+
+These findings support using:
+
+- Dependency graphs
+- Dynamic state transitions
+- Time-based propagation
+- Multiple infrastructure layers
+- Recovery simulation
+- Cascade metrics
+
+for our prototype.
+
+---
+
+# 33. What We Are NOT Building
+
+[REC]
+
+To remain realistic within the hackathon timeframe,
+we should NOT attempt:
+
+- Real municipal infrastructure integration
+- Real-time government data
+- Real SCADA integration
+- Real electrical grid simulation
+- Full hydraulic water simulation
+- Real traffic physics simulation
+- Complex GNN training
+- Large-scale disaster prediction
+- Physically accurate infrastructure modelling
+
+These are unnecessary for demonstrating the problem statement.
+
+---
+
+# 34. MVP Scope
+
+The minimum successful prototype should contain:
+
+1. Synthetic urban infrastructure graph.
+2. 10–15 service nodes.
+3. Dependency edges.
+4. Node states.
+5. Failure injection.
+6. Time-based propagation.
+7. Multiple simultaneous failures.
+8. Recovery actions.
+9. Cascade timeline.
+10. Cascade depth.
+11. Affected service count.
+12. Recovery time.
+13. Reproducible scenarios.
+14. Visual graph.
+15. Explainable failure paths.
+
+---
+
+# 35. Hackathon-Winning Layer
+
+[REC]
+
+After the MVP works, add visual and decision-support features.
+
+Possible features:
+
+### 1. Digital Twin View
+
+3D/isometric synthetic city.
+
+### 2. Live Cascade Animation
+
+Failures propagate visually through the city.
+
+### 3. Failure Heatmap
+
+Show zones with high simulated impact.
+
+### 4. What-If Simulation
+
+Ask:
+
+"What happens if the power substation fails?"
+
+### 5. Recovery Planner
+
+Try:
+
+"Activate backup generator."
+
+Then simulate the result.
+
+### 6. Scenario Comparison
+
+Compare:
+
+No Intervention
+vs
+Intervention
+
+### 7. Explainable AI Layer
+
+Optional AI can summarize the simulation:
+
+"Power failure is expected to affect 6 services,
+primarily through the water and emergency-service dependency chains."
+
+IMPORTANT:
+
+AI should explain simulation results.
+
+The deterministic simulation engine should remain
+the source of truth.
+
+---
+
+# 36. Recommended Architecture
+
+Frontend:
+
+React
+TypeScript
+Tailwind CSS
+React Flow / Cytoscape / D3
+Three.js (optional)
+
+Simulation Engine:
+
+TypeScript
+
+Core components:
+
+Scenario Manager
+       ↓
+Graph Model
+       ↓
+Simulation Engine
+       ↓
+State Transition Engine
+       ↓
+Recovery Engine
+       ↓
+Metrics Engine
+       ↓
+Event Timeline
+
+Frontend consumes the simulation events
+and visualizes them.
+
+---
+
+# 37. Suggested Data Model
+
+Node:
+
+{
+  id,
+  name,
+  type,
+  zone,
+  state,
+  criticality,
+  recoveryTime
+}
+
+Edge:
+
+{
+  id,
+  source,
+  target,
+  dependencyType,
+  propagationDelay,
+  required
+}
+
+Scenario:
+
+{
+  id,
+  name,
+  initialFailures,
+  recoveryActions,
+  duration
+}
+
+SimulationEvent:
+
+{
+  time,
+  nodeId,
+  previousState,
+  newState,
+  reason
+}
+
+---
+
+# 38. Important Design Principle
+
+The simulation engine must be separated from the UI.
+
+The UI should not contain the actual cascade logic.
+
+Instead:
+
+Simulation Engine
+       ↓
+Simulation State
+       ↓
+UI
+
+This allows:
+
+- Easier testing
+- Easier debugging
+- Reproducible results
+- Scenario comparison
+- Future backend integration
+
+---
+
+# 39. Key User Flow
+
+## Step 1
+
+User opens:
+
+Urban Infrastructure Cascade Simulator
+
+## Step 2
+
+User selects:
+
+"Monsoon Power Failure"
+
+## Step 3
+
+System displays:
+
+Synthetic city graph.
+
+## Step 4
+
+User clicks:
+
+"Run Simulation"
+
+## Step 5
+
+Simulation clock starts:
+
+T+00:00
+
+## Step 6
+
+Power failure occurs.
+
+## Step 7
+
+Dependencies begin propagating.
+
+## Step 8
+
+Graph animates the cascade.
+
+## Step 9
+
+Timeline records every state transition.
+
+## Step 10
+
+Dashboard displays:
+
+Affected Services
+Cascade Depth
+Peak Impact
+Recovery Time
+
+## Step 11
+
+User selects:
+
+"Activate Backup Generator"
+
+## Step 12
+
+System runs recovery scenario.
+
+## Step 13
+
+User compares:
+
+Before Intervention
+vs
+After Intervention
+
+---
+
+# 40. Final Product Vision
+
+The final product should feel like:
+
+"Mission Control for Urban Infrastructure Resilience"
+
+rather than:
+
+"Another monitoring dashboard."
+
+The system should let an operator:
+
+SEE
+the dependency graph.
+
+SIMULATE
+a disruption.
+
+UNDERSTAND
+how the failure propagates.
+
+MEASURE
+the impact.
+
+INTERVENE
+with a recovery action.
+
+COMPARE
+different strategies.
+
+EXPLAIN
+why the cascade happened.
+
+---
+
+# 41. Final Definition
+
+In one sentence:
+
+> Urban Infrastructure Cascade Simulator is a deterministic,
+> explainable simulation platform that models interconnected
+> urban services as a dynamic dependency graph and shows how
+> failures propagate over time, how recovery actions affect the
+> cascade, and what the resulting system impact is.
+
+---
+
+# 42. Scope Boundary
+
+Everything in this project should be classified as:
+
+FACT
+    → Explicitly required by the hackathon problem statement.
+
+INTERP
+    → Engineering interpretation of the requirement.
+
+ASSUMPTION
+    → Design decision made because the problem statement
+      does not specify the detail.
+
+REC
+    → Recommended implementation/design choice.
+
+The prototype must never present assumptions or synthetic
+simulation values as real-world infrastructure facts.
+
+---
+
+# 43. Next Documents
+
+After this research is approved, create:
+
+01_PRD.md
+    ↓
+02_TRD.md
+    ↓
+03_ARCHITECTURE.md
+    ↓
+04_SIMULATION_ENGINE.md
+    ↓
+05_UI_UX.md
+    ↓
+Implementation
+
+The PRD should define WHAT we are building.
+
+The TRD should define HOW we are building it.
+
+The Architecture document should define HOW the components
+communicate.
+
+The Simulation Engine document should define the actual
+failure/recovery rules.
+
+The UI/UX document should define how the simulator is
+presented to the judges.
+
+
+## Reproducibility Principle
+
+The simulator must be deterministic.
+
+Given the same:
+- graph definition
+- initial failures
+- propagation parameters
+- recovery actions
+- simulation configuration
+
+the simulator must produce the same event sequence, state transitions, and metrics.
+
+The core simulation must not depend on:
+- real-world clock
+- network responses
+- unseeded randomness
+- browser timing
+- unpredictable processing order
+
+
+## Failure and Recovery Model
+
+A service can transition through:
+
+HEALTHY → DEGRADED → FAILED → RECOVERING → HEALTHY
+
+Not every scenario must use every state.
+
+Recovery is simulated rather than instantaneous.
+Recovery actions have configurable simulated durations.
+
+
+## Data Integrity
+
+All infrastructure nodes, dependencies, timings, service states,
+and scenarios are synthetic simulation data.
+
+The project does not claim to represent the actual dependency
+structure of any Indian city or government infrastructure.
+
+Simulation timings are illustrative parameters, not real-world
+measurements.
+
+                    USER
+                      ↓
+                     UI
+                      ↓
+              Scenario Validator
+                      ↓
+              Simulation Controller
+                      ↓
+             ┌──────────────────┐
+             │ Simulation Engine│
+             └────────┬─────────┘
+                      ↓
+                 Event Queue
+                      ↓
+             Dependency Resolver
+                      ↓
+              State Transitions
+                      ↓
+                Event History
+                 /     |      \
+                ↓      ↓       ↓
+              Graph Timeline Metrics
+
+## Architecture Invariant
+
+There must be only one source of simulation truth:
+
+Simulation Engine → SimulationState
+
+All visual components derive their displayed state from
+SimulationState.
+
+No UI component may independently calculate cascade,
+recovery, or metric results.

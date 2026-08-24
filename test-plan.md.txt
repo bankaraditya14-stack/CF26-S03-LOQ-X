@@ -1,0 +1,728 @@
+# Test Plan — Urban Infrastructure Cascade Simulator (S-03)
+
+This document defines the testing strategy for the Urban Infrastructure
+Cascade Simulator.
+
+The primary testing objective is to ensure that the simulation engine is:
+
+- Correct
+- Deterministic
+- Reproducible
+- Explainable
+- Safe from invalid scenarios
+- Independent from the UI
+
+The simulation engine is more important than visual polish.
+
+---
+
+# 1. Testing Strategy
+
+Testing will be performed at three levels:
+
+```text
+Unit Tests
+    ↓
+Integration Tests
+    ↓
+End-to-End Demo Tests
+Unit Tests
+
+Test individual simulation functions.
+
+Examples:
+
+State transitions
+Dependency resolution
+Event ordering
+Metric calculation
+Recovery calculation
+Integration Tests
+
+Test multiple engine components together.
+
+Examples:
+
+Failure → propagation → metrics
+Failure → recovery → stabilization
+Multiple failures → shared dependency
+End-to-End Tests
+
+Test the complete user flow through the UI.
+
+Example:
+
+Select Scenario
+      ↓
+Inject Failure
+      ↓
+Run Simulation
+      ↓
+Observe Cascade
+      ↓
+Apply Recovery
+      ↓
+View Metrics
+      ↓
+Replay
+2. Core Test Scenario
+
+The primary test graph:
+
+Power Grid
+     ↓
+Water Pump
+     ↓
+Water Distribution
+     ↓
+Hospital
+
+Additional dependencies:
+
+Power Grid
+     ↓
+Traffic Signals
+
+Telecom
+     ↓
+Emergency Dispatch
+
+Water Distribution
+     ↓
+Hospital
+
+Power Grid
+     ↓
+Sewage System
+
+All nodes represent synthetic infrastructure.
+
+3. Test Case TC-001 — Single Failure
+Objective
+
+Verify that a single initial failure propagates through its dependencies.
+
+Input
+Initial Failure:
+Power Grid
+
+Simulation Time:
+T+0
+Expected
+T+0   Power Grid       FAILED
+T+5   Water Pump       FAILED
+T+10  Water Supply     DEGRADED/FAILED
+T+15  Hospital         DEGRADED
+
+Exact timings depend on the configured scenario parameters.
+
+Pass Criteria
+Failure starts at T+0.
+Downstream nodes change according to configured delays.
+No unrelated node changes state.
+Timeline records every transition.
+4. Test Case TC-002 — Multi-Hop Cascade
+Objective
+
+Verify that a failure can propagate across multiple dependency levels.
+
+Graph
+A → B → C → D
+Expected
+A FAILED
+ ↓
+B FAILED
+ ↓
+C FAILED
+ ↓
+D FAILED
+Pass Criteria
+
+Cascade depth must be:
+
+Depth = 3
+
+because:
+
+A = Depth 0
+B = Depth 1
+C = Depth 2
+D = Depth 3
+5. Test Case TC-003 — Multiple Simultaneous Failures
+Objective
+
+Verify that multiple failures occurring at the same simulated timestamp
+are handled correctly.
+
+Input
+T+0
+
+Power Grid = FAILED
+Telecom = FAILED
+Example
+Power Grid ─────┐
+                ↓
+            Emergency
+            Dispatch
+                ↑
+Telecom ────────┘
+Expected
+
+Emergency Dispatch should be evaluated once.
+
+It must not receive duplicate failure events.
+
+Pass Criteria
+Both failures are processed at T+0.
+Shared dependent is evaluated once.
+Metrics do not double-count the shared node.
+Timeline remains deterministic.
+6. Test Case TC-004 — Shared Dependency
+Objective
+
+Verify correct behavior when multiple upstream services affect the same
+downstream service.
+
+Example:
+
+Power Grid ─────┐
+                ↓
+             Hospital
+                ↑
+Water Supply ───┘
+
+If both Power Grid and Water Supply fail:
+
+Hospital
+
+must not be counted twice.
+
+Pass Criteria
+Hospital = one affected service
+
+not:
+
+Hospital = two affected services
+7. Test Case TC-005 — Cascade Depth
+Objective
+
+Verify correct cascade-depth calculation.
+
+Example:
+
+Power
+ ↓
+Pump
+ ↓
+Water
+ ↓
+Hospital
+
+Expected:
+
+Power     = Depth 0
+Pump      = Depth 1
+Water     = Depth 2
+Hospital  = Depth 3
+
+Therefore:
+
+Cascade Depth = 3
+Pass Criteria
+
+Depth is calculated from the causal path rather than from UI layout
+or node position.
+
+8. Test Case TC-006 — Affected Services
+Objective
+
+Verify the affected-service metric.
+
+Example:
+
+Power
+ ↓
+Pump
+ ↓
+Water
+ ↓
+Hospital
+
+Initial failure:
+
+Power
+
+Expected:
+
+Affected Services = 3
+
+The initially failed Power Grid is excluded.
+
+Affected services:
+
+Pump
+Water
+Hospital
+9. Test Case TC-007 — Recovery
+Objective
+
+Verify that a failed service can be recovered.
+
+Example:
+
+Power Grid
+     ↓
+Water Pump
+
+Initial:
+
+Power Grid = FAILED
+Water Pump = FAILED
+
+Recovery:
+
+Repair Power Grid
+
+Expected state transition:
+
+FAILED
+   ↓
+RECOVERING
+   ↓
+HEALTHY
+Pass Criteria
+Recovery has a simulated duration.
+FAILED does not immediately become HEALTHY.
+Recovery generates timeline events.
+Downstream services respond to the recovered dependency.
+10. Test Case TC-008 — Recovery Interruption
+Objective
+
+Verify behavior when a service fails again while recovering.
+
+Example:
+
+Power Grid
+
+State:
+
+FAILED
+ ↓
+RECOVERING
+
+Then:
+
+Power Grid fails again
+Expected
+
+The engine must follow the configured transition rule.
+
+The state must not silently become HEALTHY.
+
+Pass Criteria
+
+The event history clearly records:
+
+Failure
+Recovery started
+Failure again
+11. Test Case TC-009 — Deterministic Replay
+Objective
+
+Verify reproducibility.
+
+Run the same scenario twice.
+
+Input
+Graph Version:
+city-v1
+
+Initial Failure:
+Power Grid
+
+Recovery:
+Backup Power at T+20
+Expected
+
+Run 1:
+
+Event A
+Event B
+Event C
+Event D
+
+Run 2:
+
+Event A
+Event B
+Event C
+Event D
+
+The event sequences must be identical.
+
+Pass Criteria
+Run 1 === Run 2
+
+including:
+
+Event order
+Timestamps
+State transitions
+Metrics
+12. Test Case TC-010 — Invalid Circular Graph
+Objective
+
+Verify that circular dependencies are rejected.
+
+Input:
+
+Power
+ ↓
+Water
+ ↓
+Hospital
+ ↓
+Power
+Expected
+
+Scenario validation fails.
+
+Example message:
+
+Invalid Scenario
+
+Circular dependency detected:
+
+Power → Water → Hospital → Power
+Pass Criteria
+
+The simulation must not start.
+
+13. Test Case TC-011 — Missing Dependency
+Objective
+
+Verify that invalid node references are rejected.
+
+Example:
+
+{
+  "from": "power-grid",
+  "to": "unknown-service"
+}
+Expected
+Invalid dependency:
+unknown-service does not exist.
+
+The simulation must not start.
+
+14. Test Case TC-012 — Duplicate Node IDs
+Objective
+
+Prevent ambiguous graph definitions.
+
+Example:
+
+power-grid
+power-grid
+Expected
+
+Scenario validation fails.
+
+Duplicate node ID:
+power-grid
+15. Test Case TC-013 — Zero/Negative Propagation Delay
+Objective
+
+Prevent invalid timing parameters.
+
+Invalid:
+
+delay = -5
+Expected
+
+Scenario validation fails.
+
+For MVP, propagation delays should be:
+
+delay >= 0
+16. Test Case TC-014 — Reset
+Objective
+
+Verify that Reset completely restores the initial simulation state.
+
+Before reset:
+
+Power = FAILED
+Water = FAILED
+Hospital = DEGRADED
+Time = T+25
+
+After reset:
+
+Power = HEALTHY
+Water = HEALTHY
+Hospital = HEALTHY
+Time = T+0
+Timeline = Empty
+Metrics = Reset
+17. Test Case TC-015 — Pause and Resume
+Objective
+
+Verify that pausing the simulation freezes simulated time.
+
+Expected:
+
+RUN
+ ↓
+T+15
+ ↓
+PAUSE
+ ↓
+T+15
+
+The simulation must not continue advancing while paused.
+
+After Resume:
+
+T+15
+ ↓
+T+16
+ ↓
+T+17
+18. Test Case TC-016 — No Unrelated Cascades
+Objective
+
+Verify that a failure only propagates through declared dependencies.
+
+Example:
+
+Power
+ ↓
+Water Pump
+
+Telecom is independent.
+
+If:
+
+Power = FAILED
+
+Expected:
+
+Water Pump = affected
+Telecom = HEALTHY
+Pass Criteria
+
+No undocumented dependency may cause a state change.
+
+19. Test Case TC-017 — Timeline Consistency
+Objective
+
+Ensure every state transition appears in the event history.
+
+For every transition:
+
+Node
+Old State
+New State
+Timestamp
+Cause
+
+must be recorded.
+
+Example:
+
+{
+  "node": "water-pump",
+  "from": "HEALTHY",
+  "to": "FAILED",
+  "timestamp": 5,
+  "cause": "power-grid"
+}
+20. Test Case TC-018 — UI/Engine Consistency
+Objective
+
+Ensure the UI reflects the actual simulation state.
+
+If engine returns:
+
+Hospital = FAILED
+
+the graph must display:
+
+Hospital = FAILED
+
+The UI must not calculate an independent state.
+
+Architecture rule
+Simulation Engine
+       ↓
+Simulation State
+       ↓
+UI
+21. Test Case TC-019 — Metrics Consistency
+
+After every completed simulation verify:
+
+Cascade Depth
+Affected Services
+Recovery Time
+
+match the event history.
+
+Metrics must be calculated from simulation state/history rather than
+manually maintained counters where possible.
+
+22. Test Case TC-020 — Scenario Save and Replay
+Objective
+
+Verify that saved scenarios can be reproduced.
+
+Saved scenario contains:
+
+Scenario ID
+Graph Version
+Initial Failures
+Simulation Parameters
+Recovery Actions
+
+After loading and replaying:
+
+Saved Result === Replay Result
+23. Edge Cases
+
+The simulator should also handle:
+
+No failures
+All services remain HEALTHY
+Cascade Depth = 0
+Affected Services = 0
+Failure with no dependents
+Node fails
+No downstream propagation
+Multiple independent failures
+Power fails
+Telecom fails
+
+with no shared dependent.
+
+Recovery before propagation
+
+A recovery action occurs before a downstream failure is scheduled.
+
+The engine must resolve the event order deterministically.
+
+24. Performance Test
+
+For MVP, test at least:
+
+15–25 nodes
+30–50 edges
+
+The simulator should remain responsive during normal operation.
+
+If the graph is expanded significantly, performance optimization can be
+considered later.
+
+25. Security / Reliability Considerations
+
+The simulator must not execute arbitrary code from scenario definitions.
+
+Scenario files should contain data only.
+
+Example:
+
+{
+  "nodes": [],
+  "edges": [],
+  "parameters": {}
+}
+
+No executable JavaScript should be accepted through scenario data.
+
+26. Hackathon Demo Acceptance Test
+
+Before presenting to judges, perform this complete test:
+
+1. Open application
+
+2. Select:
+   Power Grid Failure
+
+3. Show graph
+
+4. Inject failure
+
+5. Run simulation
+
+6. Observe:
+   Power → Water → Hospital
+
+7. Pause simulation
+
+8. Inspect affected node
+
+9. Show:
+   Cause
+   Timestamp
+   Dependency path
+
+10. Continue simulation
+
+11. Show metrics
+
+12. Apply recovery
+
+13. Continue simulation
+
+14. Show changed outcome
+
+15. Reset
+
+16. Replay same scenario
+
+17. Confirm identical result
+
+If all steps work, the MVP is considered demo-ready.
+
+27. Definition of Done
+
+The project is ready for hackathon presentation when:
+
+ Single failure works
+ Multiple simultaneous failures work
+ Cascade propagation works
+ Dependency graph works
+ Time-based propagation works
+ Recovery works
+ Cascade depth is correct
+ Affected services are correct
+ Recovery time is correct
+ Timeline records events
+ Causal explanation works
+ Scenario replay is deterministic
+ Circular dependencies are rejected
+ Invalid scenarios are rejected
+ Reset works
+ Pause/Resume works
+ UI reflects engine state
+ Production build succeeds
+ Demo scenario works from start to finish
+28. Final Testing Principle
+
+Correctness comes before visual polish.
+
+Priority:
+
+Simulation Correctness
+        ↓
+Deterministic Results
+        ↓
+Explainability
+        ↓
+Metrics
+        ↓
+UX
+        ↓
+Visual Polish
+        ↓
+Optional 3D / AI

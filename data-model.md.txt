@@ -1,0 +1,810 @@
+# Data Model — Urban Infrastructure Cascade Simulator (S-03)
+
+This document defines the data structures used by the Urban Infrastructure
+Cascade Simulator.
+
+The data model must remain:
+
+- Deterministic
+- Serializable
+- Reproducible
+- Easy to validate
+- Independent from the UI
+- Easy to extend with additional scenarios
+
+---
+
+# 1. Core Entities
+
+The simulator is based on six primary entities:
+
+```text
+Scenario
+   │
+   ├── Graph
+   │     ├── Nodes
+   │     └── Edges
+   │
+   ├── Initial Failures
+   │
+   ├── Simulation Parameters
+   │
+   └── Recovery Actions
+
+During execution the simulator generates:
+
+Simulation State
+      ↓
+Events
+      ↓
+Metrics
+2. Service Node
+
+Every urban service is represented as a node.
+
+Example:
+
+{
+  "id": "power-grid",
+  "name": "Power Grid",
+  "type": "POWER",
+  "zone": "Central",
+  "criticality": "HIGH",
+  "initialState": "HEALTHY"
+}
+Required Fields
+Field	Description
+id	Unique machine-readable identifier
+name	Human-readable service name
+type	Service category
+zone	Synthetic geographic/administrative zone
+initialState	State before simulation
+
+criticality is optional metadata and must not be confused with a
+real-world infrastructure criticality score.
+
+3. Service Types
+
+Initial supported service types:
+
+POWER
+WATER
+TELECOM
+TRAFFIC
+HOSPITAL
+EMERGENCY
+SEWAGE
+TRANSPORT
+FUEL
+MUNICIPAL
+
+The list can be extended later.
+
+All services represent synthetic simulation entities.
+
+4. Node States
+
+The simulator uses the following states:
+
+HEALTHY
+AT_RISK
+DEGRADED
+FAILED
+RECOVERING
+State Meaning
+HEALTHY
+
+Service is operating normally.
+
+AT_RISK
+
+Service is still operating but one or more dependencies indicate elevated
+risk.
+
+DEGRADED
+
+Service is operating with reduced capability.
+
+FAILED
+
+Service is unavailable.
+
+RECOVERING
+
+Service is undergoing a recovery process.
+
+5. State Transition Model
+
+A simplified state transition model:
+
+                ┌──────────────┐
+                │    HEALTHY   │
+                └──────┬───────┘
+                       │
+                 dependency impact
+                       ↓
+                ┌──────────────┐
+                │    AT_RISK   │
+                └──────┬───────┘
+                       │
+                  degradation
+                       ↓
+                ┌──────────────┐
+                │   DEGRADED   │
+                └──────┬───────┘
+                       │
+                    failure
+                       ↓
+                ┌──────────────┐
+                │    FAILED    │
+                └──────┬───────┘
+                       │
+                    recovery
+                       ↓
+                ┌──────────────┐
+                │  RECOVERING  │
+                └──────┬───────┘
+                       │
+                    restored
+                       ↓
+                ┌──────────────┐
+                │    HEALTHY   │
+                └──────────────┘
+
+The exact transition rules are defined by the simulation engine.
+
+6. Dependency Edge
+
+Dependencies are represented as directed edges.
+
+Example:
+
+Power Grid
+    ↓
+Water Pump
+
+means:
+
+Water Pump depends on Power Grid.
+
+Data representation:
+
+{
+  "id": "power-to-water-pump",
+  "from": "power-grid",
+  "to": "water-pump",
+  "dependencyType": "REQUIRED",
+  "propagationDelay": 5
+}
+7. Edge Fields
+Field	Description
+id	Unique edge identifier
+from	Upstream service
+to	Dependent service
+dependencyType	Dependency relationship
+propagationDelay	Simulated delay before effect
+
+Example:
+
+Power Grid ──5 min──→ Water Pump
+
+means that the configured effect propagates after 5 simulated minutes.
+
+These timing values are simulation parameters and are not claims about
+real infrastructure.
+
+8. Dependency Types
+
+Initial dependency types:
+
+REQUIRED
+OPTIONAL
+REQUIRED
+
+Loss of the upstream service can cause downstream degradation or failure.
+
+OPTIONAL
+
+Loss of the upstream service may increase risk but does not necessarily
+cause immediate failure.
+
+For the MVP, most dependencies can use:
+
+REQUIRED
+9. Scenario
+
+A scenario is a complete reproducible simulation definition.
+
+Example:
+
+{
+  "id": "scenario-power-failure",
+  "name": "Central Power Failure",
+  "graphVersion": "city-v1",
+  "initialFailures": [
+    {
+      "nodeId": "power-grid",
+      "time": 0
+    }
+  ]
+}
+10. Scenario Structure
+
+A complete scenario contains:
+
+Scenario
+├── id
+├── name
+├── description
+├── graphVersion
+├── initialFailures
+├── parameters
+└── recoveryActions
+
+Example:
+
+{
+  "id": "power-and-telecom",
+  "name": "Power + Telecom Disruption",
+  "description": "Two simultaneous synthetic infrastructure failures",
+  "graphVersion": "city-v1",
+
+  "initialFailures": [
+    {
+      "nodeId": "power-grid",
+      "time": 0
+    },
+    {
+      "nodeId": "telecom",
+      "time": 0
+    }
+  ],
+
+  "parameters": {
+    "maxSimulationTime": 60
+  },
+
+  "recoveryActions": []
+}
+11. Initial Failure
+
+An initial failure defines a disruption introduced by the user.
+
+{
+  "nodeId": "power-grid",
+  "time": 0
+}
+
+Multiple failures can occur at the same timestamp.
+
+Example:
+
+[
+  {
+    "nodeId": "power-grid",
+    "time": 0
+  },
+  {
+    "nodeId": "telecom",
+    "time": 0
+  }
+]
+
+These must be processed as a single simulation batch.
+
+12. Simulation Parameters
+
+Simulation parameters control the execution environment.
+
+Example:
+
+{
+  "maxSimulationTime": 120,
+  "defaultPropagationDelay": 5,
+  "defaultRecoveryDuration": 10
+}
+
+All values represent simulated time.
+
+The engine must never depend on actual wall-clock time for simulation
+correctness.
+
+13. Simulation State
+
+The simulation state represents the current condition of the entire graph.
+
+Example:
+
+{
+  "currentTime": 15,
+
+  "nodes": {
+    "power-grid": {
+      "state": "FAILED",
+      "failedAt": 0
+    },
+
+    "water-pump": {
+      "state": "FAILED",
+      "failedAt": 5
+    },
+
+    "hospital": {
+      "state": "DEGRADED",
+      "failedAt": null
+    }
+  }
+}
+14. Node Runtime State
+
+Runtime state may contain:
+
+{
+  "state": "FAILED",
+  "previousState": "DEGRADED",
+  "stateChangedAt": 15,
+  "failedAt": 15,
+  "recoveryStartedAt": null,
+  "recoveredAt": null,
+
+  "causes": [
+    "water-distribution"
+  ]
+}
+
+Runtime state should not modify the original scenario definition.
+
+15. Simulation Event
+
+Every meaningful state transition should generate an event.
+
+Example:
+
+{
+  "id": "event-004",
+  "timestamp": 15,
+  "nodeId": "hospital",
+  "fromState": "HEALTHY",
+  "toState": "DEGRADED",
+  "cause": {
+    "type": "DEPENDENCY",
+    "nodeId": "water-distribution"
+  }
+}
+16. Event Types
+
+Initial event types:
+
+FAILURE_INJECTED
+STATE_CHANGED
+RECOVERY_STARTED
+RECOVERY_COMPLETED
+SCENARIO_STARTED
+SCENARIO_COMPLETED
+
+Optional:
+
+SCENARIO_RESET
+VALIDATION_FAILED
+17. Event Ordering
+
+Events occurring at the same simulated timestamp must be processed
+deterministically.
+
+Recommended ordering:
+
+1. Initial failures
+2. Recovery completions
+3. Dependency state changes
+4. Newly scheduled propagation events
+5. Metric updates
+
+If two events have the same priority and timestamp, they must be sorted
+using a stable deterministic key such as:
+
+nodeId
+
+The engine must not depend on random iteration order.
+
+18. Cause Model
+
+Every downstream state change should preserve its cause.
+
+Example:
+
+{
+  "type": "DEPENDENCY",
+  "sourceNodeId": "power-grid"
+}
+
+For multiple dependencies:
+
+{
+  "type": "DEPENDENCY",
+  "sourceNodeIds": [
+    "power-grid",
+    "water-supply"
+  ]
+}
+
+This allows the UI to explain:
+
+Hospital degraded because Power Grid and Water Supply were unavailable.
+
+19. Recovery Action
+
+A recovery action represents an intervention applied during simulation.
+
+Example:
+
+{
+  "id": "recovery-001",
+  "nodeId": "water-pump",
+  "type": "BACKUP_POWER",
+  "startTime": 20,
+  "duration": 10
+}
+20. Recovery Types
+
+Initial MVP recovery actions:
+
+REPAIR
+BACKUP_POWER
+ISOLATE
+REPAIR
+
+Attempts to restore the selected service.
+
+BACKUP_POWER
+
+Provides simulated alternate power to a dependent service.
+
+ISOLATE
+
+Prevents further propagation through the selected service or dependency,
+according to the engine's defined rules.
+
+The exact behavior must be deterministic.
+
+21. Metrics Model
+
+The simulator produces the required metrics.
+
+{
+  "cascadeDepth": 3,
+  "affectedServices": 4,
+  "recoveryTime": 18
+}
+
+Optional:
+
+{
+  "criticalServicesAffected": 2,
+  "timeToStabilization": 24
+}
+22. Cascade Depth
+
+Definition:
+
+Initial failure = Depth 0
+Direct dependent = Depth 1
+Next dependent = Depth 2
+...
+
+Example:
+
+Power
+ ↓
+Pump
+ ↓
+Water
+ ↓
+Hospital
+
+Result:
+
+Cascade Depth = 3
+23. Affected Services
+
+Affected services count downstream services that entered a non-healthy
+state.
+
+The initial failure is excluded.
+
+Example:
+
+Power = initial failure
+Pump = affected
+Water = affected
+Hospital = affected
+
+Result:
+
+Affected Services = 3
+
+A service affected by multiple upstream failures is counted only once.
+
+24. Recovery Time
+
+Recovery time represents simulated time associated with restoration.
+
+Example:
+
+Failure:
+T+5
+
+Recovery:
+T+20
+
+Recovered:
+T+30
+
+Recovery duration:
+
+10 simulated minutes
+
+The implementation should distinguish:
+
+Recovery Duration
+
+from:
+
+Total Time To Recovery
+
+so that the metric definition remains unambiguous.
+
+25. Graph Definition
+
+A graph can be represented as:
+
+{
+  "version": "city-v1",
+
+  "nodes": [
+    {
+      "id": "power-grid",
+      "name": "Power Grid",
+      "type": "POWER",
+      "zone": "Central",
+      "initialState": "HEALTHY"
+    },
+
+    {
+      "id": "water-pump",
+      "name": "Water Pump",
+      "type": "WATER",
+      "zone": "Central",
+      "initialState": "HEALTHY"
+    }
+  ],
+
+  "edges": [
+    {
+      "id": "power-water",
+      "from": "power-grid",
+      "to": "water-pump",
+      "dependencyType": "REQUIRED",
+      "propagationDelay": 5
+    }
+  ]
+}
+26. Example Synthetic City Graph
+
+The MVP can use approximately 10–15 service nodes.
+
+Example:
+
+                    POWER GRID
+                   /    |     \
+                  ↓     ↓      ↓
+            WATER PUMP  TRAFFIC  SEWAGE
+                  ↓
+            WATER SUPPLY
+                  ↓
+              HOSPITAL
+                  ↑
+             EMERGENCY
+                  ↑
+               TELECOM
+
+Additional nodes:
+
+Public Transport
+Fuel Station
+Municipal Control
+
+The exact graph is synthetic and does not represent a real Indian city.
+
+27. Data Validation Rules
+
+Before a scenario starts, validate:
+
+Node validation
+Every node has a unique ID.
+Every node has a valid type.
+Every node has a valid initial state.
+Edge validation
+from node exists.
+to node exists.
+Edge IDs are unique.
+Propagation delay is non-negative.
+Scenario validation
+Initial failure node exists.
+Failure timestamps are valid.
+Recovery action node exists.
+Simulation parameters are valid.
+Graph validation
+Circular dependencies must be detected according to the engine's
+supported graph rules.
+Invalid references must reject the scenario.
+28. Serialization
+
+Scenario definitions must be serializable.
+
+Recommended format:
+
+JSON
+
+Benefits:
+
+Easy to inspect
+Easy to save
+Easy to replay
+Easy to version
+Easy for frontend/backend communication
+29. Separation of Static and Runtime Data
+
+Static data:
+
+Graph
+Scenario
+Nodes
+Edges
+Parameters
+
+Runtime data:
+
+Current State
+Event Queue
+Event History
+Metrics
+Recovery Progress
+
+The engine must never mutate the original graph definition during a run.
+
+30. Reproducibility Requirement
+
+Given identical:
+
+Graph Version
++
+Scenario
++
+Parameters
++
+Recovery Actions
+
+the simulator must produce:
+
+Identical Event History
++
+Identical Final State
++
+Identical Metrics
+
+No unseeded randomness should be used by the simulation engine.
+
+31. Recommended TypeScript Interfaces
+
+Conceptual TypeScript model:
+
+type NodeState =
+  | "HEALTHY"
+  | "AT_RISK"
+  | "DEGRADED"
+  | "FAILED"
+  | "RECOVERING";
+
+type ServiceType =
+  | "POWER"
+  | "WATER"
+  | "TELECOM"
+  | "TRAFFIC"
+  | "HOSPITAL"
+  | "EMERGENCY"
+  | "SEWAGE"
+  | "TRANSPORT"
+  | "FUEL"
+  | "MUNICIPAL";
+
+interface ServiceNode {
+  id: string;
+  name: string;
+  type: ServiceType;
+  zone: string;
+  initialState: NodeState;
+}
+
+interface DependencyEdge {
+  id: string;
+  from: string;
+  to: string;
+  dependencyType: "REQUIRED" | "OPTIONAL";
+  propagationDelay: number;
+}
+
+interface InitialFailure {
+  nodeId: string;
+  time: number;
+}
+
+interface RecoveryAction {
+  id: string;
+  nodeId: string;
+  type: "REPAIR" | "BACKUP_POWER" | "ISOLATE";
+  startTime: number;
+  duration: number;
+}
+
+interface SimulationParameters {
+  maxSimulationTime: number;
+  defaultPropagationDelay: number;
+  defaultRecoveryDuration: number;
+}
+
+interface Scenario {
+  id: string;
+  name: string;
+  description: string;
+  graphVersion: string;
+  initialFailures: InitialFailure[];
+  parameters: SimulationParameters;
+  recoveryActions: RecoveryAction[];
+}
+32. Important Architecture Rule
+
+The UI should consume simulation data.
+
+The UI should NOT independently calculate cascade logic.
+
+Correct:
+
+Scenario
+   ↓
+Simulation Engine
+   ↓
+Simulation State
+   ↓
+Metrics + Events
+   ↓
+UI
+
+Incorrect:
+
+Scenario
+   ↓
+UI calculates failure
+   ↓
+Engine calculates another failure
+
+There must be one source of truth:
+
+The Simulation Engine.
+
+33. Final Data Model Principle
+
+The data model must make it possible to answer:
+
+What failed?
+      ↓
+When?
+      ↓
+Because of what?
+      ↓
+Which services were affected?
+      ↓
+How deep was the cascade?
+      ↓
+What recovery action was applied?
+      ↓
+When did recovery complete?

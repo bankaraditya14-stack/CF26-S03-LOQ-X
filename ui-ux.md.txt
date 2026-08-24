@@ -1,0 +1,1185 @@
+# UI/UX Specification — Urban Infrastructure Cascade Simulator (S-03)
+
+This document defines the user interface, user experience, screen hierarchy,
+interaction model, and visual design direction for the Urban Infrastructure
+Cascade Simulator.
+
+The UI must prioritize:
+- Simulation clarity
+- Causal explainability
+- Fast interaction
+- Judge-friendly demonstration
+- Professional hackathon presentation
+
+The UI must not compromise simulation correctness for visual effects.
+
+---
+
+# 1. Product Experience
+
+The application should feel like an:
+
+> Urban Infrastructure Resilience Command Center
+
+The user should be able to understand the following within a few seconds:
+
+1. What infrastructure is being simulated?
+2. Which service failed?
+3. How is the failure propagating?
+4. Which services are affected?
+5. How deep is the cascade?
+6. How long does recovery take?
+7. What happens if a recovery action is applied?
+
+---
+
+# 2. Primary User Flow
+
+The main demo flow is:
+
+```text
+Open Simulator
+      ↓
+Select Scenario
+      ↓
+View Infrastructure Graph
+      ↓
+Select Failure
+      ↓
+Inject Failure
+      ↓
+Run Simulation
+      ↓
+Watch Cascade
+      ↓
+Inspect Timeline
+      ↓
+View Metrics
+      ↓
+Apply Recovery Action
+      ↓
+Continue Simulation
+      ↓
+Compare Results
+      ↓
+Replay Scenario
+3. Main Screen
+
+The main screen should be the simulator dashboard.
+
+Conceptual layout:
+
+┌──────────────────────────────────────────────────────────────┐
+│  CASCADE CITY                         ● SIMULATION READY      │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Scenario: Power Grid Failure            Time: T+00:00       │
+│                                                              │
+│ ┌────────────────────────────────────┐ ┌───────────────────┐ │
+│ │                                    │ │ SYSTEM METRICS    │ │
+│ │                                    │ │                   │ │
+│ │       INFRASTRUCTURE GRAPH         │ │ Cascade Depth  0  │ │
+│ │                                    │ │ Affected       0  │ │
+│ │                                    │ │ Recovery       -- │ │
+│ │                                    │ │                   │ │
+│ │                                    │ │ HEALTHY      11   │ │
+│ │                                    │ │ DEGRADED      0   │ │
+│ │                                    │ │ FAILED        0   │ │
+│ │                                    │ │ RECOVERING    0   │ │
+│ │                                    │ └───────────────────┘ │
+│ │                                    │                       │
+│ └────────────────────────────────────┘                       │
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│  TIMELINE                                                    │
+│  T+00  Power Grid failed                                    │
+│  T+05  Water Pump failed                                    │
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│  [▶ RUN] [Ⅱ PAUSE] [↻ RESET] [＋ RECOVERY] [REPLAY]         │
+└──────────────────────────────────────────────────────────────┘
+4. Header
+
+The header should contain:
+
+Product name
+Simulation status
+Scenario name
+Current simulated time
+Optional scenario identifier
+
+Example:
+
+CASCADE CITY
+Urban Infrastructure Resilience Simulator
+
+● RUNNING
+SCENARIO: POWER FAILURE
+SIM TIME: T+12
+5. Infrastructure Graph
+
+The graph is the primary visualization.
+
+Each service is represented as a node.
+
+Example:
+
+             ┌──────────────┐
+             │  POWER GRID  │
+             └──────┬───────┘
+                    │
+          ┌─────────┼─────────┐
+          ↓         ↓         ↓
+     WATER PUMP   TRAFFIC   HOSPITAL
+          │       SIGNALS      ↑
+          ↓                    │
+     WATER SUPPLY ─────────────┘
+
+Edges represent dependencies.
+
+Direction must always be visually clear.
+
+6. Node States
+
+Nodes should visually communicate their current state.
+
+HEALTHY
+Normal node
+DEGRADED
+Amber/orange indication
+FAILED
+Red indication
+RECOVERING
+Blue/cyan indication
+AT_RISK
+Optional warning indication
+
+The exact colors should remain consistent throughout the application.
+
+7. Node Interaction
+
+Clicking a node opens an inspector.
+
+Example:
+
+┌─────────────────────────────┐
+│ WATER PUMP                  │
+│                             │
+│ Status      FAILED          │
+│ Zone        Sector 04       │
+│                             │
+│ Cause:                      │
+│ Power Grid Failure          │
+│                             │
+│ Failed at: T+05             │
+│                             │
+│ [APPLY RECOVERY]            │
+└─────────────────────────────┘
+
+The inspector should answer:
+
+Why is this service in its current state?
+
+8. Failure Injection
+
+The user must be able to select one or more nodes before simulation.
+
+Example:
+
+SELECT INITIAL DISRUPTIONS
+
+☑ Power Grid
+☐ Telecom
+☐ Water Pump
+☐ Hospital
+☐ Traffic Signals
+
+[INJECT SELECTED FAILURES]
+
+Multiple selected failures must be injected at the same simulated
+timestamp.
+
+9. Simulation Controls
+
+Primary controls:
+
+▶ RUN
+Ⅱ PAUSE
+↻ RESET
+⏩ SPEED
+
+Optional:
+
+STEP
+REPLAY
+
+The interface should make the main action visually obvious:
+
+RUN SIMULATION
+
+10. Simulation Clock
+
+Display simulated time prominently.
+
+Example:
+
+SIMULATION TIME
+
+T+00:00
+
+During playback:
+
+T+05:00
+
+The clock represents virtual simulation time, not real-world time.
+
+11. Event Timeline
+
+The timeline displays every important state transition chronologically.
+
+Example:
+
+T+00  🔴 Power Grid
+      FAILED
+      Initial disruption
+
+T+05  🔴 Water Pump
+      FAILED
+      Cause: Power Grid
+
+T+10  🟠 Water Distribution
+      DEGRADED
+      Cause: Water Pump
+
+T+15  🟠 Hospital
+      DEGRADED
+      Cause: Water Distribution
+
+Each event should be inspectable.
+
+12. Causal Explanation
+
+For every downstream failure, show:
+
+WHAT happened?
+WHY did it happen?
+WHEN did it happen?
+
+Example:
+
+Hospital degraded at T+15
+
+Cause:
+Water Distribution degraded at T+10
+
+Upstream chain:
+Power Grid
+    ↓
+Water Pump
+    ↓
+Water Distribution
+    ↓
+Hospital
+
+This is a major differentiating UX feature.
+
+13. Metrics Panel
+
+The dashboard must display the required metrics.
+
+┌────────────────────────────┐
+│ SIMULATION IMPACT          │
+├────────────────────────────┤
+│                            │
+│ CASCADE DEPTH              │
+│ 3                          │
+│                            │
+│ AFFECTED SERVICES          │
+│ 4                          │
+│                            │
+│ RECOVERY TIME              │
+│ 18 min                     │
+│                            │
+└────────────────────────────┘
+
+Optional metrics may include:
+
+Critical Services Affected
+Time to Stabilization
+
+but they are not required for MVP.
+
+14. Recovery Panel
+
+When a service has failed, the user can apply a recovery action.
+
+Example:
+
+RECOVERY ACTION
+
+Selected:
+Water Pump
+
+Available Actions:
+
+[ Backup Power ]
+[ Repair ]
+[ Isolate Service ]
+
+Recovery Duration:
+10 min
+
+[ APPLY ACTION ]
+
+The result should become visible in the simulation.
+
+15. Before / After Comparison
+
+If time permits, provide a comparison view.
+
+Example:
+
+WITHOUT RECOVERY        WITH RECOVERY
+
+Cascade Depth   5       Cascade Depth   3
+Affected        7       Affected        4
+Recovery       32m      Recovery        18m
+
+The purpose is to demonstrate:
+
+Recovery decisions can change the cascade outcome.
+
+16. Scenario Selector
+
+Provide predefined scenarios for a fast demo.
+
+Example:
+
+SCENARIOS
+
+01  Power Grid Failure
+02  Telecom Failure
+03  Power + Telecom
+04  Water Pump Failure
+05  Custom Scenario
+
+Predefined scenarios should be deterministic.
+
+17. Scenario Information
+
+Before running:
+
+POWER GRID FAILURE
+
+Initial Disruption:
+Power Grid
+
+Expected Dependencies:
+Water
+Traffic
+Hospital
+
+Simulation Type:
+Single Failure
+
+Data:
+Synthetic Urban Infrastructure
+18. Replay
+
+After a scenario completes:
+
+[REPLAY SCENARIO]
+
+Replay must start from a fresh simulation state.
+
+The same scenario must generate the same event sequence.
+
+19. Validation UX
+
+Invalid actions should produce clear messages.
+
+Example:
+
+⚠ INVALID SCENARIO
+
+Circular dependency detected.
+
+Power Grid
+    ↓
+Water Pump
+    ↓
+Power Grid
+
+Please modify the scenario before running.
+
+Do not show raw programming errors to users.
+
+20. Synthetic Data Label
+
+The application should clearly communicate that the city model is synthetic.
+
+Recommended placement:
+
+SYNTHETIC SIMULATION
+Not connected to live municipal infrastructure
+
+This can appear in the header or footer.
+
+21. Visual Design Direction
+
+Recommended style:
+
+Dark Command Center
++
+Civic Technology
++
+Modern Data Visualization
+
+Visual characteristics:
+
+Dark background
+High-contrast infrastructure graph
+Glassmorphism used sparingly
+Clear status colors
+Subtle grid/background texture
+Smooth but restrained animations
+Strong typography
+Minimal unnecessary decoration
+
+The interface should feel like a serious operational tool rather than a
+generic dashboard template.
+
+22. Animation Rules
+
+Animations should communicate system activity.
+
+Good:
+
+Node pulse when state changes
+Edge animation during propagation
+Timeline event appearance
+Simulation clock progression
+Recovery progress
+
+Avoid:
+
+Excessive 3D animations
+Decorative animations unrelated to simulation
+Constant movement that reduces readability
+
+Animation must never become the source of simulation state.
+
+23. Responsive Design
+
+The simulator should work on:
+
+Desktop
+Laptop
+Tablet
+
+Desktop is the primary target because the hackathon demonstration will
+likely use a large screen.
+
+On smaller screens:
+
+Graph
+  ↓
+Metrics
+  ↓
+Timeline
+  ↓
+Controls
+
+rather than attempting to display everything simultaneously.
+
+24. Judge-Friendly Demo Mode
+
+A dedicated demo scenario should allow the team to demonstrate the
+complete system quickly.
+
+Recommended flow:
+
+1. Open Power Grid scenario
+
+2. Show infrastructure graph
+
+3. Explain:
+   "Every edge represents a dependency."
+
+4. Inject Power Grid failure
+
+5. Press RUN
+
+6. Watch:
+   Power → Water Pump → Water → Hospital
+
+7. Show timeline
+
+8. Show:
+   Cascade Depth
+   Affected Services
+   Recovery Time
+
+9. Apply Backup Power
+
+10. Continue simulation
+
+11. Show improved result
+
+12. Replay the same scenario
+
+13. Demonstrate identical result
+
+Target demonstration duration:
+
+2–3 minutes
+25. UX Priorities
+
+Priority order:
+
+P0 — Must be clear
+Infrastructure graph
+Failure injection
+Run/Pause/Reset
+Simulation time
+State changes
+Timeline
+Required metrics
+Causal explanation
+P1 — Important
+Recovery controls
+Scenario selection
+Replay
+Comparison
+P2 — Optional
+Advanced animations
+3D/isometric visualization
+AI-generated summary
+Advanced impact visualization
+26. Core UX Principle
+
+The user should always be able to answer:
+
+"What failed?"
+
+"What failed because of it?"
+
+"When did it fail?"
+
+"Why did it fail?"
+
+"How bad was the cascade?"
+
+"What happens if I recover this service?"
+
+This principle should guide every UI decision.
+
+
+### अब हमारा document pipeline:
+
+```text
+01_RESEARCH.md
+       ↓
+02_PRD.md
+       ↓
+03_TRD.md
+       ↓
+04_ARCHITECTURE.md
+       ↓
+05_UI_UX.md
+       ↓
+06_TEST_PLAN.md
+       ↓
+CODING# UI/UX Specification — Urban Infrastructure Cascade Simulator (S-03)
+
+This document defines the user interface, user experience, screen hierarchy,
+interaction model, and visual design direction for the Urban Infrastructure
+Cascade Simulator.
+
+The UI must prioritize:
+- Simulation clarity
+- Causal explainability
+- Fast interaction
+- Judge-friendly demonstration
+- Professional hackathon presentation
+
+The UI must not compromise simulation correctness for visual effects.
+
+---
+
+# 1. Product Experience
+
+The application should feel like an:
+
+> Urban Infrastructure Resilience Command Center
+
+The user should be able to understand the following within a few seconds:
+
+1. What infrastructure is being simulated?
+2. Which service failed?
+3. How is the failure propagating?
+4. Which services are affected?
+5. How deep is the cascade?
+6. How long does recovery take?
+7. What happens if a recovery action is applied?
+
+---
+
+# 2. Primary User Flow
+
+The main demo flow is:
+
+```text
+Open Simulator
+      ↓
+Select Scenario
+      ↓
+View Infrastructure Graph
+      ↓
+Select Failure
+      ↓
+Inject Failure
+      ↓
+Run Simulation
+      ↓
+Watch Cascade
+      ↓
+Inspect Timeline
+      ↓
+View Metrics
+      ↓
+Apply Recovery Action
+      ↓
+Continue Simulation
+      ↓
+Compare Results
+      ↓
+Replay Scenario
+3. Main Screen
+
+The main screen should be the simulator dashboard.
+
+Conceptual layout:
+
+┌──────────────────────────────────────────────────────────────┐
+│  CASCADE CITY                         ● SIMULATION READY      │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Scenario: Power Grid Failure            Time: T+00:00       │
+│                                                              │
+│ ┌────────────────────────────────────┐ ┌───────────────────┐ │
+│ │                                    │ │ SYSTEM METRICS    │ │
+│ │                                    │ │                   │ │
+│ │       INFRASTRUCTURE GRAPH         │ │ Cascade Depth  0  │ │
+│ │                                    │ │ Affected       0  │ │
+│ │                                    │ │ Recovery       -- │ │
+│ │                                    │ │                   │ │
+│ │                                    │ │ HEALTHY      11   │ │
+│ │                                    │ │ DEGRADED      0   │ │
+│ │                                    │ │ FAILED        0   │ │
+│ │                                    │ │ RECOVERING    0   │ │
+│ │                                    │ └───────────────────┘ │
+│ │                                    │                       │
+│ └────────────────────────────────────┘                       │
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│  TIMELINE                                                    │
+│  T+00  Power Grid failed                                    │
+│  T+05  Water Pump failed                                    │
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│  [▶ RUN] [Ⅱ PAUSE] [↻ RESET] [＋ RECOVERY] [REPLAY]         │
+└──────────────────────────────────────────────────────────────┘
+4. Header
+
+The header should contain:
+
+Product name
+Simulation status
+Scenario name
+Current simulated time
+Optional scenario identifier
+
+Example:
+
+CASCADE CITY
+Urban Infrastructure Resilience Simulator
+
+● RUNNING
+SCENARIO: POWER FAILURE
+SIM TIME: T+12
+5. Infrastructure Graph
+
+The graph is the primary visualization.
+
+Each service is represented as a node.
+
+Example:
+
+             ┌──────────────┐
+             │  POWER GRID  │
+             └──────┬───────┘
+                    │
+          ┌─────────┼─────────┐
+          ↓         ↓         ↓
+     WATER PUMP   TRAFFIC   HOSPITAL
+          │       SIGNALS      ↑
+          ↓                    │
+     WATER SUPPLY ─────────────┘
+
+Edges represent dependencies.
+
+Direction must always be visually clear.
+
+6. Node States
+
+Nodes should visually communicate their current state.
+
+HEALTHY
+Normal node
+DEGRADED
+Amber/orange indication
+FAILED
+Red indication
+RECOVERING
+Blue/cyan indication
+AT_RISK
+Optional warning indication
+
+The exact colors should remain consistent throughout the application.
+
+7. Node Interaction
+
+Clicking a node opens an inspector.
+
+Example:
+
+┌─────────────────────────────┐
+│ WATER PUMP                  │
+│                             │
+│ Status      FAILED          │
+│ Zone        Sector 04       │
+│                             │
+│ Cause:                      │
+│ Power Grid Failure          │
+│                             │
+│ Failed at: T+05             │
+│                             │
+│ [APPLY RECOVERY]            │
+└─────────────────────────────┘
+
+The inspector should answer:
+
+Why is this service in its current state?
+
+8. Failure Injection
+
+The user must be able to select one or more nodes before simulation.
+
+Example:
+
+SELECT INITIAL DISRUPTIONS
+
+☑ Power Grid
+☐ Telecom
+☐ Water Pump
+☐ Hospital
+☐ Traffic Signals
+
+[INJECT SELECTED FAILURES]
+
+Multiple selected failures must be injected at the same simulated
+timestamp.
+
+9. Simulation Controls
+
+Primary controls:
+
+▶ RUN
+Ⅱ PAUSE
+↻ RESET
+⏩ SPEED
+
+Optional:
+
+STEP
+REPLAY
+
+The interface should make the main action visually obvious:
+
+RUN SIMULATION
+
+10. Simulation Clock
+
+Display simulated time prominently.
+
+Example:
+
+SIMULATION TIME
+
+T+00:00
+
+During playback:
+
+T+05:00
+
+The clock represents virtual simulation time, not real-world time.
+
+11. Event Timeline
+
+The timeline displays every important state transition chronologically.
+
+Example:
+
+T+00  🔴 Power Grid
+      FAILED
+      Initial disruption
+
+T+05  🔴 Water Pump
+      FAILED
+      Cause: Power Grid
+
+T+10  🟠 Water Distribution
+      DEGRADED
+      Cause: Water Pump
+
+T+15  🟠 Hospital
+      DEGRADED
+      Cause: Water Distribution
+
+Each event should be inspectable.
+
+12. Causal Explanation
+
+For every downstream failure, show:
+
+WHAT happened?
+WHY did it happen?
+WHEN did it happen?
+
+Example:
+
+Hospital degraded at T+15
+
+Cause:
+Water Distribution degraded at T+10
+
+Upstream chain:
+Power Grid
+    ↓
+Water Pump
+    ↓
+Water Distribution
+    ↓
+Hospital
+
+This is a major differentiating UX feature.
+
+13. Metrics Panel
+
+The dashboard must display the required metrics.
+
+┌────────────────────────────┐
+│ SIMULATION IMPACT          │
+├────────────────────────────┤
+│                            │
+│ CASCADE DEPTH              │
+│ 3                          │
+│                            │
+│ AFFECTED SERVICES          │
+│ 4                          │
+│                            │
+│ RECOVERY TIME              │
+│ 18 min                     │
+│                            │
+└────────────────────────────┘
+
+Optional metrics may include:
+
+Critical Services Affected
+Time to Stabilization
+
+but they are not required for MVP.
+
+14. Recovery Panel
+
+When a service has failed, the user can apply a recovery action.
+
+Example:
+
+RECOVERY ACTION
+
+Selected:
+Water Pump
+
+Available Actions:
+
+[ Backup Power ]
+[ Repair ]
+[ Isolate Service ]
+
+Recovery Duration:
+10 min
+
+[ APPLY ACTION ]
+
+The result should become visible in the simulation.
+
+15. Before / After Comparison
+
+If time permits, provide a comparison view.
+
+Example:
+
+WITHOUT RECOVERY        WITH RECOVERY
+
+Cascade Depth   5       Cascade Depth   3
+Affected        7       Affected        4
+Recovery       32m      Recovery        18m
+
+The purpose is to demonstrate:
+
+Recovery decisions can change the cascade outcome.
+
+16. Scenario Selector
+
+Provide predefined scenarios for a fast demo.
+
+Example:
+
+SCENARIOS
+
+01  Power Grid Failure
+02  Telecom Failure
+03  Power + Telecom
+04  Water Pump Failure
+05  Custom Scenario
+
+Predefined scenarios should be deterministic.
+
+17. Scenario Information
+
+Before running:
+
+POWER GRID FAILURE
+
+Initial Disruption:
+Power Grid
+
+Expected Dependencies:
+Water
+Traffic
+Hospital
+
+Simulation Type:
+Single Failure
+
+Data:
+Synthetic Urban Infrastructure
+18. Replay
+
+After a scenario completes:
+
+[REPLAY SCENARIO]
+
+Replay must start from a fresh simulation state.
+
+The same scenario must generate the same event sequence.
+
+19. Validation UX
+
+Invalid actions should produce clear messages.
+
+Example:
+
+⚠ INVALID SCENARIO
+
+Circular dependency detected.
+
+Power Grid
+    ↓
+Water Pump
+    ↓
+Power Grid
+
+Please modify the scenario before running.
+
+Do not show raw programming errors to users.
+
+20. Synthetic Data Label
+
+The application should clearly communicate that the city model is synthetic.
+
+Recommended placement:
+
+SYNTHETIC SIMULATION
+Not connected to live municipal infrastructure
+
+This can appear in the header or footer.
+
+21. Visual Design Direction
+
+Recommended style:
+
+Dark Command Center
++
+Civic Technology
++
+Modern Data Visualization
+
+Visual characteristics:
+
+Dark background
+High-contrast infrastructure graph
+Glassmorphism used sparingly
+Clear status colors
+Subtle grid/background texture
+Smooth but restrained animations
+Strong typography
+Minimal unnecessary decoration
+
+The interface should feel like a serious operational tool rather than a
+generic dashboard template.
+
+22. Animation Rules
+
+Animations should communicate system activity.
+
+Good:
+
+Node pulse when state changes
+Edge animation during propagation
+Timeline event appearance
+Simulation clock progression
+Recovery progress
+
+Avoid:
+
+Excessive 3D animations
+Decorative animations unrelated to simulation
+Constant movement that reduces readability
+
+Animation must never become the source of simulation state.
+
+23. Responsive Design
+
+The simulator should work on:
+
+Desktop
+Laptop
+Tablet
+
+Desktop is the primary target because the hackathon demonstration will
+likely use a large screen.
+
+On smaller screens:
+
+Graph
+  ↓
+Metrics
+  ↓
+Timeline
+  ↓
+Controls
+
+rather than attempting to display everything simultaneously.
+
+24. Judge-Friendly Demo Mode
+
+A dedicated demo scenario should allow the team to demonstrate the
+complete system quickly.
+
+Recommended flow:
+
+1. Open Power Grid scenario
+
+2. Show infrastructure graph
+
+3. Explain:
+   "Every edge represents a dependency."
+
+4. Inject Power Grid failure
+
+5. Press RUN
+
+6. Watch:
+   Power → Water Pump → Water → Hospital
+
+7. Show timeline
+
+8. Show:
+   Cascade Depth
+   Affected Services
+   Recovery Time
+
+9. Apply Backup Power
+
+10. Continue simulation
+
+11. Show improved result
+
+12. Replay the same scenario
+
+13. Demonstrate identical result
+
+Target demonstration duration:
+
+2–3 minutes
+25. UX Priorities
+
+Priority order:
+
+P0 — Must be clear
+Infrastructure graph
+Failure injection
+Run/Pause/Reset
+Simulation time
+State changes
+Timeline
+Required metrics
+Causal explanation
+P1 — Important
+Recovery controls
+Scenario selection
+Replay
+Comparison
+P2 — Optional
+Advanced animations
+3D/isometric visualization
+AI-generated summary
+Advanced impact visualization
+26. Core UX Principle
+
+The user should always be able to answer:
+
+"What failed?"
+
+"What failed because of it?"
+
+"When did it fail?"
+
+"Why did it fail?"
+
+"How bad was the cascade?"
+
+"What happens if I recover this service?"
+
+This principle should guide every UI decision.
+
+
+### अब हमारा document pipeline:
+
+```text
+01_RESEARCH.md
+       ↓
+02_PRD.md
+       ↓
+03_TRD.md
+       ↓
+04_ARCHITECTURE.md
+       ↓
+05_UI_UX.md
+       ↓
+06_TEST_PLAN.md
+       ↓
+CODING
