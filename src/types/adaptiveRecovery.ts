@@ -2,6 +2,7 @@ import { RecoveryAction, RecoveryActionType } from './recovery';
 
 export type StrategyPriority = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type AiConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+export type ResidualRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export interface AiSimulationContext {
   rootFailureNodeId: string;
@@ -32,6 +33,7 @@ export interface AiRawStrategy {
   target_nodes: string[];
   actions: string[];
   action_type?: RecoveryActionType;
+  required_resources?: string;
 }
 
 export interface AiGeminiResponse {
@@ -51,24 +53,39 @@ export interface ValidatedStrategyResult {
   priority: StrategyPriority;
   reason: string;
   targetNodeIds: string[];
+  interventionType: RecoveryActionType;
+  requiredResources: string;
   actions: RecoveryAction[];
   isAiRecommended: boolean;
   isBaseline: boolean;
+
+  // Independent Deterministic Simulation Metrics
   metrics: {
     populationAffected: number;
+    citizensProtected: number;
+    servicesProtectedCount: number;
+    servicesStillAffectedCount: number;
+    totalServicesCount: number;
     cascadeDepth: number;
-    servicesAffectedPct: number;
     recoveryTimeMin: number;
-    risk: 'LOW' | 'ELEVATED' | 'CRITICAL' | 'CONTAINED';
+    timeSavedMin: number;
+    residualRisk: ResidualRisk;
     healthPct: number;
+    criticalInfrastructureProtected: string[];
+    criticalServicesStillAffected: string[];
   };
+
+  // Comparison & Normalized Score
   baselineComparison: {
     populationSaved: number;
     cascadeHopsReduced: number;
     recoveryTimeSavedMin: number;
     impactReductionPct: number;
   };
+
+  recoveryScore: number; // 0–100 Multi-Factor Deterministic Recovery Score
   rank: number;
+  whyThisRank: string;
 }
 
 export interface AiRecoveryAnalysis {

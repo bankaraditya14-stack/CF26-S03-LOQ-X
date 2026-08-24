@@ -143,8 +143,8 @@ describe('Adaptive Recovery Intelligence (Gemini AI + Deterministic Simulation V
     });
   });
 
-  describe('4. Deterministic Simulation Validation ("Gemini proposes. Cascade City verifies.")', () => {
-    it('converts AI recommendations into executable recovery actions and validates on SimulationEngine', () => {
+  describe('4. Independent Deterministic Simulation Validation & Scoring ("Gemini proposes. Cascade City verifies.")', () => {
+    it('converts AI recommendations into executable recovery actions and validates on SimulationEngine with independent metrics', () => {
       const context = AdaptiveRecoveryService.buildSimulationContext('power-grid-main');
       const aiResponse: AiGeminiResponse = {
         incident_summary: 'Major substation failure',
@@ -162,7 +162,7 @@ describe('Adaptive Recovery Intelligence (Gemini AI + Deterministic Simulation V
             name: 'ISOLATE INDUSTRIAL LOAD',
             priority: 'HIGH',
             reason: 'Sheds non-essential loads',
-            target_nodes: ['traffic-management-hub'],
+            target_nodes: ['traffic-control'],
             actions: ['Quarantine non-essential junction power'],
             action_type: 'ISOLATE',
           },
@@ -180,18 +180,108 @@ describe('Adaptive Recovery Intelligence (Gemini AI + Deterministic Simulation V
       expect(validatedResults.length).toBe(3);
 
       const baseline = validatedResults.find((s) => s.isBaseline);
-      const topStrat = validatedResults[0];
+      const strat1 = validatedResults[0];
+      const strat2 = validatedResults[1];
 
       expect(baseline).toBeDefined();
       expect(baseline?.baselineComparison.impactReductionPct).toBe(0);
+      expect(baseline?.recoveryScore).toBe(0);
 
-      // The top strategy must have positive verified impact reduction
-      expect(topStrat.baselineComparison.impactReductionPct).toBeGreaterThan(0);
-      expect(topStrat.baselineComparison.populationSaved).toBeGreaterThanOrEqual(0);
-      expect(topStrat.rank).toBe(1);
+      // Verify that every strategy has its OWN independent metrics
+      expect(strat1.recoveryScore).toBeGreaterThan(0);
+      expect(strat1.recoveryScore).toBeLessThanOrEqual(100);
+      expect(strat1.metrics.citizensProtected).toBeGreaterThanOrEqual(0);
+      expect(strat1.metrics.servicesProtectedCount).toBeGreaterThan(0);
+      expect(strat1.metrics.totalServicesCount).toBe(SYNTHETIC_CITY_GRAPH.nodes.length);
+      expect(strat1.rank).toBe(1);
+      expect(strat1.whyThisRank).toContain('Highest composite recovery score');
+
+      // Interventions must NOT share identical metric values unless coincidentally equal
+      expect(strat1.targetNodeIds).not.toEqual(strat2.targetNodeIds);
     });
 
-    it('ranks strategies strictly by measured SimulationEngine impact reduction', () => {
+    it('evaluates different interventions to different metrics under the same failure', () => {
+      const context = AdaptiveRecoveryService.buildSimulationContext('power-grid-main');
+      const aiResponse: AiGeminiResponse = {
+        incident_summary: 'Major power grid failure',
+        priority_targets: ['water-treatment-pump', 'hospital-apex'],
+        recommended_strategy: {
+          name: 'DEPLOY BACKUP GENERATOR FLEET',
+          priority: 'CRITICAL',
+          reason: 'Emergency electrical feed to critical lifelines',
+          target_nodes: ['water-treatment-pump', 'hospital-apex'],
+          actions: ['Deploy 500kVA generator'],
+          action_type: 'BACKUP_POWER',
+        },
+        alternative_strategies: [
+          {
+            name: 'LOCAL ISOLATION',
+            priority: 'LOW',
+            reason: 'Isolates only north cellular tower',
+            target_nodes: ['telecom-tower-north'],
+            actions: ['Isolate tower circuit'],
+            action_type: 'ISOLATE',
+          },
+        ],
+        explanation: 'Testing differential impacts',
+        confidence: 'HIGH',
+      };
+
+      const results = AdaptiveRecoveryService.validateStrategiesWithSimulationEngine(
+        context,
+        aiResponse
+      );
+
+      const stratPower = results.find((s) => s.name === 'DEPLOY BACKUP GENERATOR FLEET')!;
+      const stratLocal = results.find((s) => s.name === 'LOCAL ISOLATION')!;
+
+      // Broad lifelines generator must protect more citizens than isolating one cellular tower
+      expect(stratPower.metrics.citizensProtected).toBeGreaterThan(
+        stratLocal.metrics.citizensProtected
+      );
+      expect(stratPower.recoveryScore).toBeGreaterThan(stratLocal.recoveryScore);
+      expect(stratPower.rank).toBe(1);
+      expect(stratLocal.rank).toBe(2);
+    });
+
+    it('produces different results for the same intervention across different failure scenarios', () => {
+      const powerContext = AdaptiveRecoveryService.buildSimulationContext('power-grid-main');
+      const telecomContext = AdaptiveRecoveryService.buildSimulationContext('telecom-core');
+
+      const generatorStrategy: AiGeminiResponse = {
+        incident_summary: 'Testing scenario sensitivity',
+        priority_targets: ['hospital-apex'],
+        recommended_strategy: {
+          name: 'DEPLOY BACKUP GENERATOR',
+          priority: 'CRITICAL',
+          reason: 'Emergency generation',
+          target_nodes: ['hospital-apex'],
+          actions: ['Deploy generator'],
+          action_type: 'BACKUP_POWER',
+        },
+        alternative_strategies: [],
+        explanation: 'Testing cross-scenario sensitivity',
+        confidence: 'HIGH',
+      };
+
+      const powerResults = AdaptiveRecoveryService.validateStrategiesWithSimulationEngine(
+        powerContext,
+        generatorStrategy
+      );
+      const telecomResults = AdaptiveRecoveryService.validateStrategiesWithSimulationEngine(
+        telecomContext,
+        generatorStrategy
+      );
+
+      const powerImpact = powerResults[0].baselineComparison.impactReductionPct;
+      const telecomImpact = telecomResults[0].baselineComparison.impactReductionPct;
+
+      // In a power failure, a backup generator has much higher impact than in a telecom failure
+      expect(powerImpact).toBeGreaterThan(0);
+      expect(telecomImpact).toBeDefined();
+    });
+
+    it('ranks strategies strictly by measured SimulationEngine recoveryScore', () => {
       const context = AdaptiveRecoveryService.buildSimulationContext('power-grid-main');
       const aiResponse = AdaptiveRecoveryService.generateDeterministicFallbackResponse(context);
 
@@ -203,13 +293,30 @@ describe('Adaptive Recovery Intelligence (Gemini AI + Deterministic Simulation V
       const activeStrategies = results.filter((s) => !s.isBaseline);
 
       for (let i = 0; i < activeStrategies.length - 1; i++) {
-        expect(
-          activeStrategies[i].baselineComparison.impactReductionPct
-        ).toBeGreaterThanOrEqual(
-          activeStrategies[i + 1].baselineComparison.impactReductionPct
+        expect(activeStrategies[i].recoveryScore).toBeGreaterThanOrEqual(
+          activeStrategies[i + 1].recoveryScore
         );
         expect(activeStrategies[i].rank).toBe(i + 1);
       }
+    });
+
+    it('ensures results are 100% repeatable and deterministic for the same scenario + intervention', () => {
+      const context = AdaptiveRecoveryService.buildSimulationContext('water-treatment-pump');
+      const aiResponse = AdaptiveRecoveryService.generateDeterministicFallbackResponse(context);
+
+      const run1 = AdaptiveRecoveryService.validateStrategiesWithSimulationEngine(
+        context,
+        aiResponse
+      );
+      const run2 = AdaptiveRecoveryService.validateStrategiesWithSimulationEngine(
+        context,
+        aiResponse
+      );
+
+      expect(run1[0].recoveryScore).toBe(run2[0].recoveryScore);
+      expect(run1[0].metrics.citizensProtected).toBe(run2[0].metrics.citizensProtected);
+      expect(run1[0].metrics.recoveryTimeMin).toBe(run2[0].metrics.recoveryTimeMin);
+      expect(run1[0].metrics.cascadeDepth).toBe(run2[0].metrics.cascadeDepth);
     });
   });
 

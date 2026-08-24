@@ -93,6 +93,17 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
     }
   };
 
+  const getRiskBadge = (r: string) => {
+    switch (r) {
+      case 'LOW':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      case 'MEDIUM':
+        return 'bg-amber-100 text-amber-800 border-amber-300';
+      default:
+        return 'bg-red-100 text-red-700 border-red-300';
+    }
+  };
+
   return (
     <div className="bg-white rounded-3xl p-5 sm:p-6 border border-charcoal-900/15 shadow-command-lg space-y-5 font-mono select-none">
       {/* 1. Panel Header */}
@@ -192,7 +203,7 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
           <span className="font-extrabold text-charcoal-900 text-base block mt-0.5">
             {context.cascadeDepth} HOPS
           </span>
-          <span className="text-[9px] text-charcoal-400">{context.affectedServicesCount} services affected</span>
+          <span className="text-[9px] text-charcoal-400">{context.affectedServicesCount} of {context.totalServicesCount} services affected</span>
         </div>
 
         <div className="p-3 rounded-2xl bg-cream-50 border border-charcoal-900/10">
@@ -213,7 +224,10 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span className="font-extrabold text-emerald-700">{analysis?.confidence || 'HIGH'}</span>
           </div>
-          <span className="text-[9px] text-charcoal-400">Deterministic verification 100%</span>
+          <span className="text-[9px] text-emerald-600 font-bold flex items-center space-x-1">
+            <span>✓</span>
+            <span>Deterministic Verified</span>
+          </span>
         </div>
       </div>
 
@@ -222,7 +236,7 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
         <div className="py-12 flex flex-col items-center justify-center space-y-3">
           <div className="w-8 h-8 rounded-full border-2 border-charcoal-900 border-t-transparent animate-spin"></div>
           <span className="text-xs font-bold text-charcoal-700">
-            Gemini is analyzing causal topology and validating with Cascade Engine...
+            Gemini is proposing interventions and Cascade Engine is validating independently...
           </span>
         </div>
       ) : activeTab === 'OVERVIEW' ? (
@@ -240,8 +254,8 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
             </div>
           )}
 
-          {/* Strategies Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Strategies Grid - Every Card with INDEPENDENT Engine Verified Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             {analysis?.validatedResults
               .filter((s) => !s.isBaseline)
               .map((strat) => {
@@ -252,7 +266,7 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
                   <div
                     key={strat.id}
                     onClick={() => setSelectedStrategyId(strat.id)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-3 ${
+                    className={`p-4 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between space-y-3.5 ${
                       isSelected
                         ? 'border-charcoal-900 bg-cream-50 shadow-command ring-2 ring-charcoal-900'
                         : 'border-charcoal-900/15 bg-white hover:bg-cream-50/50 hover:border-charcoal-900/40 shadow-sm'
@@ -261,18 +275,27 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
                     <div>
                       {/* Top Header Row */}
                       <div className="flex items-center justify-between gap-1 mb-2">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border ${getPriorityBadge(
-                            strat.priority
-                          )}`}
-                        >
-                          {strat.priority}
-                        </span>
+                        <div className="flex items-center space-x-1.5">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border ${getPriorityBadge(
+                              strat.priority
+                            )}`}
+                          >
+                            {strat.priority}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-bold">
+                            ✓ ENGINE VERIFIED
+                          </span>
+                        </div>
 
-                        {isTopRanked && (
+                        {isTopRanked ? (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1">
                             <Award className="w-3 h-3" />
                             <span>RANK #1 OPTIMAL</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-extrabold text-charcoal-500 bg-cream-100 px-2 py-0.5 rounded-full border border-charcoal-900/10">
+                            RANK #{strat.rank}
                           </span>
                         )}
                       </div>
@@ -282,33 +305,82 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
                         {strat.name}
                       </h3>
 
+                      {/* Resource Tag */}
+                      <div className="mt-1.5 text-[10px] text-charcoal-500 font-sans">
+                        <span className="font-bold text-charcoal-700">Resources: </span>
+                        <span>{strat.requiredResources}</span>
+                      </div>
+
                       {/* AI Rationale */}
                       <p className="text-[11px] text-charcoal-600 font-sans mt-2 line-clamp-3 leading-relaxed">
                         {strat.reason}
                       </p>
                     </div>
 
-                    {/* Engine Verified Impact Metrics */}
-                    <div className="pt-2.5 border-t border-charcoal-900/10 space-y-1.5 text-[10px]">
-                      <div className="flex items-center justify-between text-charcoal-500 font-bold">
-                        <span>ENGINE VERIFIED IMPACT:</span>
-                        <strong className="text-emerald-700 text-xs">
-                          +{strat.baselineComparison.impactReductionPct}% REDUCTION
-                        </strong>
+                    {/* Independent Engine Verified Metrics Box */}
+                    <div className="p-3 rounded-2xl bg-white border border-charcoal-900/10 space-y-2 text-[10px]">
+                      {/* Recovery Score & Net Impact */}
+                      <div className="flex items-center justify-between pb-2 border-b border-charcoal-900/10">
+                        <div>
+                          <span className="text-[9px] text-charcoal-400 font-bold block uppercase">
+                            RECOVERY SCORE
+                          </span>
+                          <strong className="text-sm font-extrabold text-charcoal-900">
+                            {strat.recoveryScore}
+                            <span className="text-[10px] text-charcoal-400">/100</span>
+                          </strong>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-[9px] text-charcoal-400 font-bold block uppercase">
+                            ENGINE IMPACT
+                          </span>
+                          <strong className="text-xs font-extrabold text-emerald-700">
+                            +{strat.baselineComparison.impactReductionPct}% REDUCTION
+                          </strong>
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-charcoal-600">
-                        <span>Citizens Protected:</span>
-                        <strong className="text-charcoal-900">
-                          {strat.baselineComparison.populationSaved.toLocaleString()}
-                        </strong>
+                      {/* Detailed Metric Columns */}
+                      <div className="grid grid-cols-2 gap-2 text-[10px] pt-0.5">
+                        <div>
+                          <span className="text-charcoal-400 block text-[9px]">CITIZENS PROTECTED</span>
+                          <strong className="text-charcoal-900 font-extrabold">
+                            {strat.metrics.citizensProtected.toLocaleString()}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="text-charcoal-400 block text-[9px]">SERVICES PROTECTED</span>
+                          <strong className="text-charcoal-900 font-extrabold">
+                            {strat.metrics.servicesProtectedCount} / {strat.metrics.totalServicesCount}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="text-charcoal-400 block text-[9px]">RECOVERY TIME</span>
+                          <strong className="text-charcoal-900 font-extrabold">
+                            {strat.metrics.recoveryTimeMin} min
+                            {strat.metrics.timeSavedMin > 0 && (
+                              <span className="text-emerald-700 text-[9px] font-normal block">
+                                (Saved {strat.metrics.timeSavedMin}m)
+                              </span>
+                            )}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span className="text-charcoal-400 block text-[9px]">RESIDUAL RISK</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border inline-block mt-0.5 ${getRiskBadge(strat.metrics.residualRisk)}`}>
+                            {strat.metrics.residualRisk}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-charcoal-600">
-                        <span>Recovery Time:</span>
-                        <strong className="text-charcoal-900">
-                          {strat.metrics.recoveryTimeMin} min (Saved {strat.baselineComparison.recoveryTimeSavedMin} min)
-                        </strong>
+                      {/* Why This Rank Explanation */}
+                      <div className="pt-2 border-t border-charcoal-900/10 text-[9px] text-charcoal-600 font-sans leading-tight">
+                        <strong className="font-mono text-charcoal-800">Why this rank: </strong>
+                        <span>{strat.whyThisRank}</span>
                       </div>
                     </div>
                   </div>
@@ -328,7 +400,7 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
                     SELECTED INTERVENTION:
                   </span>
                   <span className="text-xs font-extrabold text-charcoal-900 uppercase">
-                    {activeStrategy.name} ({activeStrategy.baselineComparison.impactReductionPct}% Impact Reduction)
+                    {activeStrategy.name} • Score: {activeStrategy.recoveryScore}/100 (+{activeStrategy.baselineComparison.impactReductionPct}% Verified Reduction)
                   </span>
                 </div>
               </div>
@@ -353,11 +425,12 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
                 <tr className="bg-cream-100 text-charcoal-900 font-bold border-b border-charcoal-900/15 text-[11px] uppercase tracking-wider">
                   <th className="p-3.5">Rank</th>
                   <th className="p-3.5">Recovery Strategy</th>
-                  <th className="p-3.5">Population Impact</th>
-                  <th className="p-3.5">Cascade Depth</th>
+                  <th className="p-3.5">Recovery Score</th>
+                  <th className="p-3.5">Citizens Protected</th>
+                  <th className="p-3.5">Services Protected</th>
                   <th className="p-3.5">Recovery Time</th>
-                  <th className="p-3.5">Services Impact</th>
-                  <th className="p-3.5">Verified Reduction</th>
+                  <th className="p-3.5">Residual Risk</th>
+                  <th className="p-3.5">Verified Impact</th>
                   <th className="p-3.5 text-right">Action</th>
                 </tr>
               </thead>
@@ -397,33 +470,40 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
                       </div>
                     </td>
                     <td className="p-3.5">
-                      <strong className={s.isBaseline ? 'text-red-700' : 'text-charcoal-900'}>
-                        {s.metrics.populationAffected.toLocaleString()}
-                      </strong>
-                      {!s.isBaseline && (
-                        <span className="text-[10px] text-emerald-700 block">
-                          (-{s.baselineComparison.populationSaved.toLocaleString()})
-                        </span>
+                      {s.isBaseline ? (
+                        <span className="text-charcoal-400 font-normal">0/100</span>
+                      ) : (
+                        <strong className="text-charcoal-900 text-xs">
+                          {s.recoveryScore}/100
+                        </strong>
                       )}
                     </td>
                     <td className="p-3.5">
-                      <strong>{s.metrics.cascadeDepth} hops</strong>
-                      {!s.isBaseline && s.baselineComparison.cascadeHopsReduced > 0 && (
-                        <span className="text-[10px] text-emerald-700 block">
-                          (-{s.baselineComparison.cascadeHopsReduced} hops)
-                        </span>
+                      {s.isBaseline ? (
+                        <span className="text-red-700 font-bold">0</span>
+                      ) : (
+                        <strong className="text-emerald-700">
+                          {s.metrics.citizensProtected.toLocaleString()}
+                        </strong>
                       )}
+                    </td>
+                    <td className="p-3.5">
+                      <strong>
+                        {s.metrics.servicesProtectedCount} / {s.metrics.totalServicesCount}
+                      </strong>
                     </td>
                     <td className="p-3.5">
                       <strong>{s.metrics.recoveryTimeMin} min</strong>
-                      {!s.isBaseline && s.baselineComparison.recoveryTimeSavedMin > 0 && (
+                      {!s.isBaseline && s.metrics.timeSavedMin > 0 && (
                         <span className="text-[10px] text-emerald-700 block">
-                          (-{s.baselineComparison.recoveryTimeSavedMin} min)
+                          (-{s.metrics.timeSavedMin} min)
                         </span>
                       )}
                     </td>
                     <td className="p-3.5">
-                      <strong>{s.metrics.servicesAffectedPct}%</strong>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getRiskBadge(s.metrics.residualRisk)}`}>
+                        {s.metrics.residualRisk}
+                      </span>
                     </td>
                     <td className="p-3.5">
                       {s.isBaseline ? (
@@ -481,7 +561,7 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
             <div className="p-3 rounded-xl bg-amber-100 border border-amber-300 text-amber-900">
               <span className="text-[9px] font-bold text-amber-800 uppercase block">2. PROPAGATION</span>
               <strong className="text-xs block mt-0.5">{context.cascadeDepth} Cascade Hops</strong>
-              <span className="text-[10px] text-amber-800">{context.affectedServicesCount} Services Affected</span>
+              <span className="text-[10px] text-amber-800">{context.affectedServicesCount} Services Strained</span>
             </div>
 
             <div className="hidden md:flex justify-center text-charcoal-400">
@@ -490,8 +570,8 @@ export const AdaptiveRecoveryPanel: React.FC<AdaptiveRecoveryPanelProps> = ({
 
             <div className="p-3 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900">
               <span className="text-[9px] font-bold text-emerald-800 uppercase block">3. VERIFIED OUTCOME</span>
-              <strong className="text-xs block mt-0.5">+{activeStrategy?.baselineComparison.impactReductionPct || 50}% Shield</strong>
-              <span className="text-[10px] text-emerald-800">{activeStrategy?.baselineComparison.populationSaved.toLocaleString()} Citizens Safe</span>
+              <strong className="text-xs block mt-0.5">Score: {activeStrategy?.recoveryScore || 85}/100</strong>
+              <span className="text-[10px] text-emerald-800">+{activeStrategy?.baselineComparison.impactReductionPct || 50}% Net Shield</span>
             </div>
           </div>
         </div>
