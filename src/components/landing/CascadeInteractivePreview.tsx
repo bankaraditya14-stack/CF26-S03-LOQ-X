@@ -151,42 +151,50 @@ export const CascadeInteractivePreview: React.FC = () => {
     switch (state) {
       case 'FAILED':
         return {
-          bg: 'bg-dustybrown-300',
-          border: 'border-dustybrown-400',
-          text: 'text-dustybrown-300',
-          pillBg: 'bg-dustybrown-100 text-dustybrown-400 border border-dustybrown-300',
-          dot: 'bg-dustybrown-300',
+          bg: 'bg-red-600',
+          border: 'border-red-500',
+          cardBg: 'bg-red-50/80 border-red-400 shadow-[0_0_16px_rgba(239,68,68,0.3)]',
+          text: 'text-red-700',
+          pillBg: 'bg-red-100 text-red-700 border border-red-300',
+          dot: 'bg-red-600',
+          iconBg: 'bg-red-600 text-white',
           statusText: 'CRITICAL FAILURE',
-          glow: 'shadow-[0_0_16px_rgba(148,109,109,0.35)]',
+          glow: 'shadow-[0_0_16px_rgba(239,68,68,0.35)]',
         };
       case 'DEGRADED':
         return {
-          bg: 'bg-cream-300',
-          border: 'border-dustybrown-300',
-          text: 'text-dustybrown-400',
-          pillBg: 'bg-cream-200 text-dustybrown-400 border border-dustybrown-300',
-          dot: 'bg-dustybrown-300',
+          bg: 'bg-amber-500',
+          border: 'border-amber-400',
+          cardBg: 'bg-amber-50/80 border-amber-300 shadow-sm',
+          text: 'text-amber-800',
+          pillBg: 'bg-amber-100 text-amber-800 border border-amber-300',
+          dot: 'bg-amber-500',
+          iconBg: 'bg-amber-500 text-white',
           statusText: 'DEGRADED',
           glow: 'shadow-none',
         };
       case 'AT_RISK':
         return {
-          bg: 'bg-mutedpurple-100',
-          border: 'border-mutedpurple-300',
-          text: 'text-mutedpurple-500',
-          pillBg: 'bg-mutedpurple-50 text-mutedpurple-600 border border-mutedpurple-300',
-          dot: 'bg-mutedpurple-300',
+          bg: 'bg-amber-400',
+          border: 'border-amber-300',
+          cardBg: 'bg-amber-50/60 border-amber-300 shadow-sm',
+          text: 'text-amber-800',
+          pillBg: 'bg-amber-100 text-amber-800 border border-amber-300',
+          dot: 'bg-amber-500',
+          iconBg: 'bg-amber-500 text-white',
           statusText: 'AT RISK',
           glow: 'shadow-none',
         };
       case 'HEALTHY':
       default:
         return {
-          bg: 'bg-softblue-50',
-          border: 'border-softblue-300',
-          text: 'text-softblue-700',
-          pillBg: 'bg-softblue-100 text-softblue-700 border border-softblue-300',
-          dot: 'bg-softblue-300',
+          bg: 'bg-emerald-500',
+          border: 'border-emerald-300',
+          cardBg: 'bg-white border-emerald-200/80',
+          text: 'text-emerald-700',
+          pillBg: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+          dot: 'bg-emerald-500',
+          iconBg: 'bg-emerald-50 text-emerald-700',
           statusText: 'OPERATIONAL',
           glow: 'shadow-none',
         };
@@ -239,17 +247,13 @@ export const CascadeInteractivePreview: React.FC = () => {
             <div
               onMouseEnter={() => setActiveHoverNode('power-grid')}
               onMouseLeave={() => setActiveHoverNode(null)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer bg-white ${
+              className={`p-4 rounded-xl border transition-all cursor-pointer ${
                 activeHoverNode === 'power-grid' ? 'ring-2 ring-charcoal-900 shadow-command' : ''
-              } ${
-                step.nodes['power-grid'].state === 'FAILED'
-                  ? 'border-dustybrown-300 shadow-glow-brown bg-dustybrown-50'
-                  : 'border-softblue-300'
-              }`}
+              } ${getNodeVisual(step.nodes['power-grid'].state).cardBg}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`p-2 rounded-lg ${step.nodes['power-grid'].state === 'FAILED' ? 'bg-dustybrown-300 text-white' : 'bg-softblue-100 text-softblue-700'}`}>
+                  <div className={`p-2 rounded-lg ${getNodeVisual(step.nodes['power-grid'].state).iconBg}`}>
                     <Zap className="w-4 h-4" />
                   </div>
                   <div>
@@ -269,17 +273,13 @@ export const CascadeInteractivePreview: React.FC = () => {
             <div
               onMouseEnter={() => setActiveHoverNode('telecom')}
               onMouseLeave={() => setActiveHoverNode(null)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer bg-white ${
+              className={`p-4 rounded-xl border transition-all cursor-pointer ${
                 activeHoverNode === 'telecom' ? 'ring-2 ring-charcoal-900 shadow-command' : ''
-              } ${
-                step.nodes['telecom'].state === 'DEGRADED'
-                  ? 'border-mutedpurple-300 bg-mutedpurple-50'
-                  : 'border-softblue-300'
-              }`}
+              } ${getNodeVisual(step.nodes['telecom'].state).cardBg}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`p-2 rounded-lg ${step.nodes['telecom'].state === 'DEGRADED' ? 'bg-mutedpurple-300 text-white' : 'bg-softblue-100 text-softblue-700'}`}>
+                  <div className={`p-2 rounded-lg ${getNodeVisual(step.nodes['telecom'].state).iconBg}`}>
                     <Radio className="w-4 h-4" />
                   </div>
                   <div>
@@ -302,17 +302,13 @@ export const CascadeInteractivePreview: React.FC = () => {
             <div
               onMouseEnter={() => setActiveHoverNode('water-pump')}
               onMouseLeave={() => setActiveHoverNode(null)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer bg-white ${
+              className={`p-4 rounded-xl border transition-all cursor-pointer ${
                 activeHoverNode === 'water-pump' ? 'ring-2 ring-charcoal-900 shadow-command' : ''
-              } ${
-                step.nodes['water-pump'].state === 'FAILED'
-                  ? 'border-dustybrown-300 shadow-glow-brown bg-dustybrown-50'
-                  : 'border-softblue-300'
-              }`}
+              } ${getNodeVisual(step.nodes['water-pump'].state).cardBg}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`p-2 rounded-lg ${step.nodes['water-pump'].state === 'FAILED' ? 'bg-dustybrown-300 text-white' : 'bg-softblue-100 text-softblue-700'}`}>
+                  <div className={`p-2 rounded-lg ${getNodeVisual(step.nodes['water-pump'].state).iconBg}`}>
                     <Droplets className="w-4 h-4" />
                   </div>
                   <div>
@@ -332,17 +328,13 @@ export const CascadeInteractivePreview: React.FC = () => {
             <div
               onMouseEnter={() => setActiveHoverNode('traffic')}
               onMouseLeave={() => setActiveHoverNode(null)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer bg-white ${
+              className={`p-4 rounded-xl border transition-all cursor-pointer ${
                 activeHoverNode === 'traffic' ? 'ring-2 ring-charcoal-900 shadow-command' : ''
-              } ${
-                step.nodes['traffic'].state === 'FAILED'
-                  ? 'border-dustybrown-300 shadow-glow-brown bg-dustybrown-50'
-                  : 'border-softblue-300'
-              }`}
+              } ${getNodeVisual(step.nodes['traffic'].state).cardBg}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`p-2 rounded-lg ${step.nodes['traffic'].state === 'FAILED' ? 'bg-dustybrown-300 text-white' : 'bg-softblue-100 text-softblue-700'}`}>
+                  <div className={`p-2 rounded-lg ${getNodeVisual(step.nodes['traffic'].state).iconBg}`}>
                     <Car className="w-4 h-4" />
                   </div>
                   <div>
@@ -365,19 +357,13 @@ export const CascadeInteractivePreview: React.FC = () => {
             <div
               onMouseEnter={() => setActiveHoverNode('dispatch')}
               onMouseLeave={() => setActiveHoverNode(null)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer bg-white ${
+              className={`p-4 rounded-xl border transition-all cursor-pointer ${
                 activeHoverNode === 'dispatch' ? 'ring-2 ring-charcoal-900 shadow-command' : ''
-              } ${
-                step.nodes['dispatch'].state === 'FAILED'
-                  ? 'border-dustybrown-300 shadow-glow-brown bg-dustybrown-50'
-                  : step.nodes['dispatch'].state === 'AT_RISK'
-                  ? 'border-mutedpurple-300 bg-mutedpurple-50'
-                  : 'border-softblue-300'
-              }`}
+              } ${getNodeVisual(step.nodes['dispatch'].state).cardBg}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`p-2 rounded-lg ${step.nodes['dispatch'].state === 'FAILED' ? 'bg-dustybrown-300 text-white' : 'bg-softblue-100 text-softblue-700'}`}>
+                  <div className={`p-2 rounded-lg ${getNodeVisual(step.nodes['dispatch'].state).iconBg}`}>
                     <PhoneCall className="w-4 h-4" />
                   </div>
                   <div>
@@ -397,17 +383,13 @@ export const CascadeInteractivePreview: React.FC = () => {
             <div
               onMouseEnter={() => setActiveHoverNode('hospital')}
               onMouseLeave={() => setActiveHoverNode(null)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer bg-white ${
+              className={`p-4 rounded-xl border transition-all cursor-pointer ${
                 activeHoverNode === 'hospital' ? 'ring-2 ring-charcoal-900 shadow-command' : ''
-              } ${
-                step.nodes['hospital'].state === 'AT_RISK'
-                  ? 'border-mutedpurple-300 bg-mutedpurple-50'
-                  : 'border-softblue-300'
-              }`}
+              } ${getNodeVisual(step.nodes['hospital'].state).cardBg}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2.5">
-                  <div className={`p-2 rounded-lg ${step.nodes['hospital'].state === 'AT_RISK' ? 'bg-mutedpurple-300 text-white' : 'bg-softblue-100 text-softblue-700'}`}>
+                  <div className={`p-2 rounded-lg ${getNodeVisual(step.nodes['hospital'].state).iconBg}`}>
                     <HeartPulse className="w-4 h-4" />
                   </div>
                   <div>

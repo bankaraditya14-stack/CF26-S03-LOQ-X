@@ -35,7 +35,19 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
 }) => {
   if (!isOpen || !causalInfo) return null;
 
-  const isHealthy = causalInfo.targetState === 'HEALTHY';
+  const isFailed = causalInfo.targetState === 'FAILED' || causalInfo.targetState === 'CRITICAL';
+  const isDegraded = causalInfo.targetState === 'DEGRADED' || causalInfo.targetState === 'AT_RISK' || causalInfo.targetState === 'WARNING';
+  const isHealthy = causalInfo.targetState === 'HEALTHY' || causalInfo.targetState === 'ONLINE';
+
+  const getStateBadgeStyle = (state: string) => {
+    if (state === 'FAILED' || state === 'CRITICAL') {
+      return 'bg-red-100 text-red-700 border-red-300';
+    }
+    if (state === 'DEGRADED' || state === 'AT_RISK' || state === 'WARNING') {
+      return 'bg-amber-100 text-amber-800 border-amber-300';
+    }
+    return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal-900/60 backdrop-blur-sm animate-in fade-in select-none font-mono">
@@ -46,14 +58,16 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
             <div
               className={`p-2.5 rounded-xl border ${
                 isHealthy
-                  ? 'bg-softblue-100 text-softblue-700 border-softblue-300'
-                  : 'bg-dustybrown-100 text-dustybrown-400 border-dustybrown-300 animate-pulse'
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : isDegraded
+                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  : 'bg-red-100 text-red-700 border-red-300 animate-pulse'
               }`}
             >
               {isHealthy ? (
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-700" />
               ) : (
-                <ShieldAlert className="w-5 h-5" />
+                <ShieldAlert className={`w-5 h-5 ${isFailed ? 'text-red-700' : 'text-amber-700'}`} />
               )}
             </div>
             <div>
@@ -62,13 +76,9 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
                   WHY DID THIS SERVICE FAIL?
                 </h2>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                    causalInfo.targetState === 'FAILED'
-                      ? 'bg-dustybrown-100 text-dustybrown-400 border-dustybrown-300'
-                      : causalInfo.targetState === 'DEGRADED'
-                      ? 'bg-cream-200 text-charcoal-800 border-cream-400'
-                      : 'bg-softblue-100 text-softblue-700 border-softblue-300'
-                  }`}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getStateBadgeStyle(
+                    causalInfo.targetState
+                  )}`}
                 >
                   {causalInfo.targetState}
                 </span>
@@ -89,8 +99,8 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
 
         {/* Dynamic Causal Explanation Box */}
         <div className="p-4 rounded-2xl bg-cream-50 border border-charcoal-900/10 space-y-2 text-xs">
-          <div className="text-[10px] text-mutedpurple-600 font-bold uppercase tracking-wider flex items-center space-x-1.5">
-            <Info className="w-3.5 h-3.5" />
+          <div className="text-[10px] text-charcoal-700 font-bold uppercase tracking-wider flex items-center space-x-1.5">
+            <Info className="w-3.5 h-3.5 text-amber-600" />
             <span>ROOT CAUSE EXPLANATION</span>
           </div>
           <p className="text-charcoal-900 text-sm font-sans leading-relaxed">
@@ -108,7 +118,7 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
               {causalInfo.directCauses.map((cause, idx) => (
                 <span
                   key={idx}
-                  className="px-2.5 py-1 rounded-lg bg-dustybrown-100 border border-dustybrown-300 text-dustybrown-400 font-bold text-xs"
+                  className="px-2.5 py-1 rounded-lg bg-red-100 border border-red-300 text-red-700 font-bold text-xs"
                 >
                   {cause}
                 </span>
@@ -120,7 +130,7 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
         {/* Causal Chain Visualization */}
         <div className="space-y-3 text-xs">
           <div className="text-charcoal-700 font-bold uppercase text-[11px] flex items-center space-x-1.5">
-            <GitCommit className="w-4 h-4 text-mutedpurple-600" />
+            <GitCommit className="w-4 h-4 text-charcoal-700" />
             <span>CAUSAL DEPENDENCY CHAINS</span>
           </div>
 
@@ -139,14 +149,16 @@ export const WhyDidThisFailModal: React.FC<WhyDidThisFailModalProps> = ({
                       <div
                         className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${
                           isFirst
-                            ? 'bg-dustybrown-100 border-dustybrown-300 text-dustybrown-400 shadow-sm'
+                            ? 'bg-red-100 border-red-300 text-red-700 shadow-sm'
                             : isLast
-                            ? 'bg-mutedpurple-100 border-mutedpurple-300 text-mutedpurple-700'
-                            : 'bg-white border-charcoal-900/10 text-charcoal-700'
+                            ? step.state === 'FAILED'
+                              ? 'bg-red-100 border-red-300 text-red-700'
+                              : 'bg-amber-100 border-amber-300 text-amber-800'
+                            : getStateBadgeStyle(step.state)
                         }`}
                       >
                         <span>{step.name}</span>
-                        <span className="ml-1.5 text-[9px] font-mono text-charcoal-400">
+                        <span className="ml-1.5 text-[9px] font-mono opacity-80">
                           [{step.state}]
                         </span>
                       </div>

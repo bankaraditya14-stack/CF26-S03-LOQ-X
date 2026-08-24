@@ -93,10 +93,10 @@ export const FailureInjectionPanel: React.FC<FailureInjectionPanelProps> = ({
                   className={`py-1.5 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer ${
                     severity === sev
                       ? sev === 'CRITICAL'
-                        ? 'bg-dustybrown-300 text-white shadow-command'
+                        ? 'bg-red-600 text-white shadow-command'
                         : sev === 'MEDIUM'
-                        ? 'bg-cream-300 text-charcoal-900 shadow-command'
-                        : 'bg-softblue-200 text-charcoal-900 shadow-command'
+                        ? 'bg-amber-500 text-white shadow-command'
+                        : 'bg-emerald-600 text-white shadow-command'
                       : 'bg-cream-100 text-charcoal-500 hover:bg-cream-200 border border-charcoal-900/10'
                   } disabled:opacity-50`}
                 >
@@ -142,7 +142,7 @@ export const FailureInjectionPanel: React.FC<FailureInjectionPanelProps> = ({
               value={probability}
               onChange={(e) => onChangeProbability(Number(e.target.value))}
               disabled={isSimulationRunning || hasInjected}
-              className="w-full h-1.5 bg-cream-300 rounded-lg appearance-none cursor-pointer accent-dustybrown-300 disabled:opacity-50"
+              className="w-full h-1.5 bg-cream-300 rounded-lg appearance-none cursor-pointer accent-red-600 disabled:opacity-50"
             />
           </div>
         </div>
@@ -156,7 +156,7 @@ export const FailureInjectionPanel: React.FC<FailureInjectionPanelProps> = ({
           className={`w-full py-3 rounded-xl font-bold font-mono text-xs tracking-wider transition-all flex items-center justify-center space-x-2 shadow-command cursor-pointer ${
             hasInjected
               ? 'bg-cream-200 text-charcoal-400 border border-charcoal-900/10 cursor-not-allowed'
-              : 'bg-dustybrown-300 hover:bg-dustybrown-400 text-white'
+              : 'bg-red-600 hover:bg-red-700 text-white'
           }`}
         >
           <Zap className="w-4 h-4" />

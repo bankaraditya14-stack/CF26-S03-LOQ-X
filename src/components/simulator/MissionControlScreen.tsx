@@ -586,7 +586,7 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
   const getHeaderStatus = () => {
     if (telemetry.cascadeRisk === 'CONTAINED' || (simTimeSec >= 30 && isInterventionDeployed)) {
       return (
-        <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-softblue-100 text-softblue-700 border border-softblue-300 shadow-sm">
+        <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>CASCADE CONTAINED</span>
         </span>
@@ -595,7 +595,7 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
 
     if (hasInjected && telemetry.affectedNodes >= 2 && !isInterventionDeployed) {
       return (
-        <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-dustybrown-100 text-dustybrown-400 border border-dustybrown-300 animate-pulse shadow-sm">
+        <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-red-100 text-red-700 border border-red-300 animate-pulse shadow-sm">
           <AlertTriangle className="w-3.5 h-3.5" />
           <span>INTERVENTION REQUIRED</span>
         </span>
@@ -603,17 +603,28 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
     }
 
     if (isPlaying) {
+      const isCritical = telemetry.affectedNodes >= 2;
       return (
-        <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-mutedpurple-100 text-mutedpurple-700 border border-mutedpurple-300 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-mutedpurple-500 animate-ping"></span>
+        <span
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold shadow-sm ${
+            isCritical
+              ? 'bg-red-100 text-red-700 border border-red-300'
+              : 'bg-amber-100 text-amber-800 border border-amber-300'
+          }`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full animate-ping ${
+              isCritical ? 'bg-red-600' : 'bg-amber-500'
+            }`}
+          ></span>
           <span>SIMULATION RUNNING</span>
         </span>
       );
     }
 
     return (
-      <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-white text-charcoal-700 border border-charcoal-900/15 shadow-sm">
-        <span className="w-2 h-2 rounded-full bg-softblue-500"></span>
+      <span className="flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
         <span>● SIMULATION READY</span>
       </span>
     );
@@ -871,9 +882,9 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
 
         {/* 4. Final State Banner & Deterministic Replay Section */}
         {isFinalState && (
-          <div className="w-full rounded-2xl p-5 border border-softblue-300 bg-white shadow-command-lg flex flex-wrap items-center justify-between gap-4 font-mono select-none animate-in fade-in">
+          <div className="w-full rounded-2xl p-5 border border-emerald-300 bg-white shadow-command-lg flex flex-wrap items-center justify-between gap-4 font-mono select-none animate-in fade-in">
             <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-xl bg-softblue-100 text-softblue-700 border border-softblue-300 shadow-sm">
+              <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-300 shadow-sm">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
@@ -885,7 +896,7 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
                 <div className="flex flex-wrap items-center gap-3 text-xs text-charcoal-500 mt-1">
                   <span>Recovery: <strong className="text-charcoal-900">18 minutes</strong></span>
                   <span>•</span>
-                  <span>Services protected: <strong className="text-softblue-700">76%</strong></span>
+                  <span>Services protected: <strong className="text-emerald-700">76%</strong></span>
                   <span>•</span>
                   <span>Population protected: <strong className="text-charcoal-900">26,700</strong></span>
                 </div>

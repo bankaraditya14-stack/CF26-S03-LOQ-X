@@ -14,14 +14,14 @@ export const CascadeEventStream: React.FC<CascadeEventStreamProps> = ({
   const getBadgeStyle = (severity: CascadeStreamEvent['severity']) => {
     switch (severity) {
       case 'critical':
-        return 'bg-dustybrown-100 text-dustybrown-400 border-dustybrown-300';
+        return 'bg-red-100 text-red-700 border-red-300';
       case 'warning':
-        return 'bg-cream-200 text-charcoal-800 border-cream-400';
+        return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'recovery':
-        return 'bg-mutedpurple-100 text-mutedpurple-700 border-mutedpurple-300';
+        return 'bg-emerald-100 text-emerald-800 border-emerald-300';
       case 'info':
       default:
-        return 'bg-softblue-100 text-softblue-700 border-softblue-300';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     }
   };
 
