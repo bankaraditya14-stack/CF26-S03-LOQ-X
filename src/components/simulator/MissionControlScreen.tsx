@@ -26,6 +26,8 @@ import {
   InterventionRecommendation,
   FailureContext,
 } from '../../services/interventionRecommendationService';
+import { AdaptiveRecoveryService } from '../../services/adaptiveRecoveryService';
+import { AiSimulationContext, ValidatedStrategyResult } from '../../types/adaptiveRecovery';
 import { SimulationEngine } from '../../engine/SimulationEngine';
 import { SYNTHETIC_CITY_GRAPH } from '../../data/cityGraph';
 import { PREDEFINED_SCENARIOS } from '../../data/scenarios';
@@ -35,6 +37,7 @@ import { FailureInjectionPanel } from './FailureInjectionPanel';
 import { CustomScenarioBuilder } from './CustomScenarioBuilder';
 import { LiveTelemetryPanel } from './LiveTelemetryPanel';
 import { InterventionPanel } from './InterventionPanel';
+import { AdaptiveRecoveryPanel } from './AdaptiveRecoveryPanel';
 import { CascadeEventStream } from './CascadeEventStream';
 import { SimulationControls } from './SimulationControls';
 import { ImpactRecoveryReportModal } from './ImpactRecoveryReportModal';
@@ -209,9 +212,10 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [hasInjected, setHasInjected] = useState<boolean>(false);
 
-// Interventions
+  // Interventions & Adaptive Recovery Intelligence
   const [selectedInterventionId, setSelectedInterventionId] = useState<string>('');
   const [isInterventionDeployed, setIsInterventionDeployed] = useState<boolean>(false);
+  const [recoveryViewTab, setRecoveryViewTab] = useState<'AI' | 'MANUAL'>('AI');
 
   // Auth & Cloud State
   const { user, isCloudConnected, openAuthModal, isAuthModalOpen, closeAuthModal, signOut } = useAuth();
@@ -521,6 +525,36 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
         });
       });
     }
+
+    syncMapFromEngine();
+  };
+
+  // Compute rich AI simulation context for Gemini
+  const aiContext: AiSimulationContext = React.useMemo(() => {
+    const engineState = engineRef.current?.getState();
+    return AdaptiveRecoveryService.buildSimulationContext(
+      selectedNodeId,
+      failureType,
+      engineState,
+      simTimeSec
+    );
+  }, [selectedNodeId, failureType, simTimeSec, hasInjected]);
+
+  // Deploy AI-Generated Strategy (Deterministic Execution)
+  const handleDeployAiStrategy = (strategy: ValidatedStrategyResult) => {
+    if (!engineRef.current) return;
+    setIsInterventionDeployed(true);
+
+    strategy.actions.forEach((action) => {
+      engineRef.current?.applyRecovery({
+        id: `${action.id}-${Date.now()}`,
+        nodeId: action.nodeId,
+        type: action.type,
+        startTime: simTimeSec,
+        duration: action.duration,
+        description: action.description,
+      });
+    });
 
     syncMapFromEngine();
   };
@@ -862,21 +896,67 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
           </section>
         </div>
 
-        {/* 3. Real-Time Intervention Decision Matrix */}
+        {/* 3. Real-Time Intervention & Adaptive Recovery Section */}
         {(hasInjected || isInterventionDeployed) && (
-          <section className="w-full">
-            <InterventionPanel
-              recommendations={recommendations}
-              selectedInterventionId={selectedInterventionId}
-              onSelectIntervention={setSelectedInterventionId}
-              onDeployIntervention={handleDeployIntervention}
-              isDeployed={isInterventionDeployed}
-              disabled={simTimeSec >= maxTimeSec}
-              failureNodeName={
-                nodes.find((n) => n.id === selectedNodeId)?.name || 'Central Infrastructure'
-              }
-              failureType={failureType}
-            />
+          <section className="w-full space-y-3">
+            {/* Mode Switcher */}
+            <div className="flex items-center justify-between bg-cream-100 p-1.5 rounded-2xl border border-charcoal-900/10 font-mono text-xs">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setRecoveryViewTab('AI')}
+                  className={`px-4 py-2 rounded-xl font-extrabold flex items-center space-x-2 transition-all cursor-pointer ${
+                    recoveryViewTab === 'AI'
+                      ? 'bg-charcoal-900 text-cream-100 shadow-command'
+                      : 'text-charcoal-600 hover:text-charcoal-900'
+                  }`}
+                >
+                  <span>✦ ADAPTIVE RECOVERY INTELLIGENCE</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-mutedpurple-100 text-mutedpurple-700 border border-mutedpurple-300 font-bold">
+                    GEMINI AI
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setRecoveryViewTab('MANUAL')}
+                  className={`px-4 py-2 rounded-xl font-extrabold transition-all cursor-pointer ${
+                    recoveryViewTab === 'MANUAL'
+                      ? 'bg-charcoal-900 text-cream-100 shadow-command'
+                      : 'text-charcoal-600 hover:text-charcoal-900'
+                  }`}
+                >
+                  MANUAL INTERVENTION MATRIX
+                </button>
+              </div>
+
+              <span className="hidden sm:inline-block text-[11px] text-charcoal-500 font-sans pr-2">
+                {recoveryViewTab === 'AI'
+                  ? '"Gemini proposes. Cascade City verifies."'
+                  : 'Rule-based mitigation matrix'}
+              </span>
+            </div>
+
+            {/* Active Panel View */}
+            {recoveryViewTab === 'AI' ? (
+              <AdaptiveRecoveryPanel
+                context={aiContext}
+                onDeployStrategy={handleDeployAiStrategy}
+                isDeployed={isInterventionDeployed}
+                disabled={simTimeSec >= maxTimeSec}
+              />
+            ) : (
+              <InterventionPanel
+                recommendations={recommendations}
+                selectedInterventionId={selectedInterventionId}
+                onSelectIntervention={setSelectedInterventionId}
+                onDeployIntervention={handleDeployIntervention}
+                isDeployed={isInterventionDeployed}
+                disabled={simTimeSec >= maxTimeSec}
+                failureNodeName={
+                  nodes.find((n) => n.id === selectedNodeId)?.name || 'Central Infrastructure'
+                }
+                failureType={failureType}
+              />
+            )}
           </section>
         )}
 

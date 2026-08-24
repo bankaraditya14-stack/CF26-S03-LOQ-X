@@ -5,3 +5,4 @@ export * from './event';
 export * from './scenario';
 export * from './simulation';
 export * from './database';
+export * from './adaptiveRecovery';
