@@ -25,6 +25,7 @@ import { navigate } from '../../utils/router';
 import { useAuth } from '../../hooks/useAuth';
 import { AuthModal } from '../auth/AuthModal';
 import { InteractiveHoverButton } from '../ui/InteractiveHoverButton';
+import { FeatureCard } from '../ui/FeatureCard';
 
 export const LandingPage: React.FC = () => {
   const { user, isCloudConnected, openAuthModal, isAuthModalOpen, closeAuthModal, signOut } = useAuth();
@@ -57,7 +58,7 @@ export const LandingPage: React.FC = () => {
           {/* Cloud Indicator */}
           {isCloudConnected ? (
             <div
-              className="hidden lg:flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-white border border-softblue-400 text-charcoal-900 text-xs font-mono shadow-sm"
+              className="hidden lg:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white border border-softblue-400 text-charcoal-900 text-xs font-mono shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               title="Connected to Supabase PostgreSQL Database"
             >
               <Cloud className="w-3.5 h-3.5 text-softblue-600" />
@@ -65,7 +66,7 @@ export const LandingPage: React.FC = () => {
             </div>
           ) : (
             <div
-              className="hidden lg:flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-white border border-charcoal-900/15 text-charcoal-500 text-xs font-mono shadow-sm"
+              className="hidden lg:flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-white border border-charcoal-900/15 text-charcoal-500 text-xs font-mono shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               title="Cloud storage unavailable. Your local scenarios remain available."
             >
               <HardDrive className="w-3.5 h-3.5 text-charcoal-400" />
@@ -75,7 +76,7 @@ export const LandingPage: React.FC = () => {
 
           <button
             onClick={() => navigate('/about-model')}
-            className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium text-charcoal-700 hover:text-charcoal-900 hover:bg-cream-200 border border-charcoal-900/10 transition-all cursor-pointer hidden md:flex items-center space-x-1.5"
+            className="px-3.5 py-1.5 rounded-full text-xs font-mono font-bold text-charcoal-700 hover:text-charcoal-900 bg-white hover:bg-cream-200 border border-charcoal-900/15 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md cursor-pointer hidden md:flex items-center space-x-1.5"
           >
             <FileText className="w-3.5 h-3.5" />
             <span>MODEL SPEC</span>
@@ -83,14 +84,14 @@ export const LandingPage: React.FC = () => {
 
           {/* Account Control */}
           {user ? (
-            <div className="flex items-center space-x-2 bg-white border border-charcoal-900/15 rounded-xl px-3 py-1 text-xs font-mono shadow-sm">
+            <div className="flex items-center space-x-2 bg-white border border-charcoal-900/15 rounded-full px-3.5 py-1.5 text-xs font-mono shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
               <UserIcon className="w-3.5 h-3.5 text-mutedpurple-600" />
               <span className="text-charcoal-900 max-w-[120px] truncate text-[11px] font-medium">
                 {user.email}
               </span>
               <button
                 onClick={() => signOut()}
-                className="p-1 rounded hover:bg-cream-200 text-charcoal-400 hover:text-dustybrown-400 transition-colors ml-0.5 cursor-pointer"
+                className="p-1 rounded-full hover:bg-cream-200 text-charcoal-400 hover:text-dustybrown-400 transition-colors ml-0.5 cursor-pointer"
                 title="Sign Out"
               >
                 <LogOut className="w-3 h-3" />
@@ -99,7 +100,7 @@ export const LandingPage: React.FC = () => {
           ) : (
             <button
               onClick={openAuthModal}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-cream-200 border border-charcoal-900/15 text-charcoal-900 text-xs font-bold font-mono transition-all flex items-center space-x-1.5 cursor-pointer shadow-sm"
+              className="px-3.5 py-1.5 rounded-full bg-white hover:bg-cream-200 border border-charcoal-900/15 text-charcoal-900 text-xs font-bold font-mono transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md flex items-center space-x-1.5 cursor-pointer"
             >
               <LogIn className="w-3.5 h-3.5 text-mutedpurple-600" />
               <span>SIGN IN</span>
@@ -368,54 +369,38 @@ export const LandingPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-7 rounded-2xl border border-charcoal-900/15 shadow-command space-y-4">
-              <div className="p-3 rounded-xl bg-softblue-100 text-softblue-700 w-fit">
-                <Layers className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold font-mono text-charcoal-900">
-                CASCADE SIMULATION
-              </h3>
-              <p className="text-sm text-charcoal-500 leading-relaxed">
-                Understand how failures propagate across power grids, municipal water networks, telecommunications, transit systems, and emergency hospitals in discrete simulated time.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FeatureCard
+              icon={<Layers className="w-6 h-6 text-softblue-600" />}
+              title="CASCADE SIMULATION"
+              description="Understand how failures propagate across power grids, municipal water networks, telecommunications, transit systems, and emergency hospitals in discrete simulated time."
+              badge="STEP 1"
+              badgeColor="bg-softblue-100 text-softblue-700 border-softblue-300"
+            />
 
-            <div className="bg-white p-7 rounded-2xl border border-charcoal-900/15 shadow-command space-y-4">
-              <div className="p-3 rounded-xl bg-mutedpurple-100 text-mutedpurple-600 w-fit">
-                <Sliders className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold font-mono text-charcoal-900">
-                WHAT-IF ANALYSIS
-              </h3>
-              <p className="text-sm text-charcoal-500 leading-relaxed">
-                Create custom multi-node scenarios, inject localized perturbations, tune propagation delays, and test worst-case urban catastrophe permutations with instant visual feedback.
-              </p>
-            </div>
+            <FeatureCard
+              icon={<Sliders className="w-6 h-6 text-mutedpurple-600" />}
+              title="WHAT-IF ANALYSIS"
+              description="Create custom multi-node scenarios, inject localized perturbations, tune propagation delays, and test worst-case urban catastrophe permutations with instant visual feedback."
+              badge="STEP 2"
+              badgeColor="bg-mutedpurple-100 text-mutedpurple-700 border-mutedpurple-300"
+            />
 
-            <div className="bg-white p-7 rounded-2xl border border-charcoal-900/15 shadow-command space-y-4">
-              <div className="p-3 rounded-xl bg-cream-300 text-charcoal-900 w-fit">
-                <Cpu className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold font-mono text-charcoal-900">
-                DETERMINISTIC ENGINE
-              </h3>
-              <p className="text-sm text-charcoal-500 leading-relaxed">
-                Produce mathematically reproducible simulation runs guaranteed by cryptographic DJB2 verification hashes. Identical inputs yield 100% identical outputs for scientific auditability.
-              </p>
-            </div>
+            <FeatureCard
+              icon={<Cpu className="w-6 h-6 text-charcoal-900" />}
+              title="DETERMINISTIC ENGINE"
+              description="Produce mathematically reproducible simulation runs guaranteed by cryptographic DJB2 verification hashes. Identical inputs yield 100% identical outputs for scientific auditability."
+              badge="STEP 3"
+              badgeColor="bg-cream-200 text-charcoal-800 border-cream-400"
+            />
 
-            <div className="bg-white p-7 rounded-2xl border border-charcoal-900/15 shadow-command space-y-4">
-              <div className="p-3 rounded-xl bg-dustybrown-100 text-dustybrown-400 w-fit">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold font-mono text-charcoal-900">
-                RECOVERY INTELLIGENCE
-              </h3>
-              <p className="text-sm text-charcoal-500 leading-relaxed">
-                Evaluate scheduled and dynamic mitigation actions (generator deployments, circuit isolations) and compare stabilization metrics against unmitigated failure baselines.
-              </p>
-            </div>
+            <FeatureCard
+              icon={<ShieldCheck className="w-6 h-6 text-dustybrown-400" />}
+              title="RECOVERY INTELLIGENCE"
+              description="Evaluate scheduled and dynamic mitigation actions (generator deployments, circuit isolations) and compare stabilization metrics against unmitigated failure baselines."
+              badge="STEP 4"
+              badgeColor="bg-dustybrown-100 text-dustybrown-400 border-dustybrown-300"
+            />
           </div>
         </section>
 
