@@ -142,17 +142,16 @@ export const LandingPage: React.FC = () => {
               <span className="text-charcoal-600">INFRASTRUCTURE RESILIENCE PLATFORM</span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-charcoal-900 font-heading leading-tight">
-              <span>Understand the Failure.</span>
-              <div className="w-full max-w-2xl -my-1 sm:-my-2">
+            <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-charcoal-900 font-heading leading-tight space-y-0 sm:-space-y-1">
+              <div className="w-full max-w-2xl">
                 <StrokeText
-                  text="Predict the Cascade."
-                  strokeColor="#7E7497"
-                  fillColor="#7E7497"
+                  text="Understand the Failure."
+                  strokeColor="#1F1F24"
+                  fillColor="#1F1F24"
                   strokeWidth={1.4}
-                  drawDuration={1.6}
-                  fillDelay={0.2}
-                  stagger={0.05}
+                  drawDuration={1.4}
+                  fillDelay={0.15}
+                  stagger={0.03}
                   ease="power2.out"
                   trigger="mount"
                   fillMode="wipe"
@@ -161,7 +160,40 @@ export const LandingPage: React.FC = () => {
                   letterSpacing={-2}
                 />
               </div>
-              <span>Plan the Recovery.</span>
+              <div className="w-full max-w-2xl">
+                <StrokeText
+                  text="Predict the Cascade."
+                  strokeColor="#7E7497"
+                  fillColor="#7E7497"
+                  strokeWidth={1.4}
+                  drawDuration={1.4}
+                  fillDelay={0.15}
+                  stagger={0.03}
+                  ease="power2.out"
+                  trigger="mount"
+                  fillMode="wipe"
+                  fontSize={64}
+                  fontWeight={800}
+                  letterSpacing={-2}
+                />
+              </div>
+              <div className="w-full max-w-2xl">
+                <StrokeText
+                  text="Plan the Recovery."
+                  strokeColor="#1F1F24"
+                  fillColor="#1F1F24"
+                  strokeWidth={1.4}
+                  drawDuration={1.4}
+                  fillDelay={0.15}
+                  stagger={0.03}
+                  ease="power2.out"
+                  trigger="mount"
+                  fillMode="wipe"
+                  fontSize={64}
+                  fontWeight={800}
+                  letterSpacing={-2}
+                />
+              </div>
             </h1>
 
             <p className="text-lg text-charcoal-500 max-w-3xl leading-relaxed">
