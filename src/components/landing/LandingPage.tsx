@@ -122,9 +122,23 @@ export const LandingPage: React.FC = () => {
         {/* ============================================================================== */}
         <section className="flex flex-col space-y-10">
           <div className="max-w-4xl space-y-5">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white border border-charcoal-900/10 shadow-sm text-xs font-mono text-charcoal-700">
-              <span className="w-2 h-2 rounded-full bg-softblue-500"></span>
-              <span className="font-bold">URBAN DIGITAL TWIN & STRESS TESTING PLATFORM</span>
+            {/* Prominent Platform Tagline */}
+            <div className="max-w-full inline-flex items-start sm:items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] text-xs sm:text-sm font-mono text-charcoal-900 leading-relaxed">
+              <span className="flex h-2.5 w-2.5 relative shrink-0 mt-1 sm:mt-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-softblue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-softblue-600"></span>
+              </span>
+              <span className="font-bold tracking-tight text-charcoal-900">
+                &ldquo;We don&apos;t just predict the cascade &mdash; we test the recovery before the real city has to.&rdquo;
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2 text-xs font-mono font-bold text-mutedpurple-700">
+              <span className="px-2.5 py-0.5 rounded-md bg-mutedpurple-100 border border-mutedpurple-300">
+                URBAN DIGITAL TWIN
+              </span>
+              <span className="text-charcoal-400">/</span>
+              <span className="text-charcoal-600">INFRASTRUCTURE RESILIENCE PLATFORM</span>
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-charcoal-900 font-heading leading-tight">

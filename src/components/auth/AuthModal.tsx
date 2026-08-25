@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   AlertCircle,
@@ -28,6 +28,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setError(null);
+      setSuccessMessage(null);
+    }
+  }, [isOpen, initialMode]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,7 +43,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
     setSuccessMessage(null);
 
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
       setError('Please enter both email and password.');
       return;
     }
@@ -48,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoading(true);
     try {
       if (mode === 'SIGN_IN') {
-        const res = await signIn(email, password);
+        const res = await signIn(trimmedEmail, password);
         if (res.error) {
           setError(res.error);
         } else {
@@ -58,14 +67,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }, 600);
         }
       } else {
-        const res = await signUp(email, password);
+        const res = await signUp(trimmedEmail, password);
         if (res.error) {
           setError(res.error);
         } else {
           setSuccessMessage('Account created successfully!');
           setTimeout(() => {
             onClose();
-          }, 800);
+          }, 600);
         }
       }
     } catch (err: any) {
@@ -94,6 +103,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white border-2 border-charcoal-900 shadow-[2px_2px_0px_0px_#1F1F24] flex items-center justify-center text-charcoal-900 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_#1F1F24] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer"
           title="Close Modal"
@@ -107,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             Welcome,
           </h2>
           <p className="text-sm text-charcoal-500 font-medium">
-            {user ? 'your active cloud session' : mode === 'SIGN_IN' ? 'sign in to continue' : 'sign up to continue'}
+            {user ? 'your active session' : mode === 'SIGN_IN' ? 'sign in to continue' : 'sign up to continue'}
           </p>
         </div>
 
@@ -126,7 +136,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <div className="p-3 rounded-xl bg-softblue-100 border-2 border-charcoal-900 text-xs text-charcoal-900 font-medium flex items-center space-x-2 shadow-[2px_2px_0px_0px_#1F1F24]">
               <CheckCircle2 className="w-4 h-4 text-softblue-700 shrink-0" />
-              <span>Simulations & scenarios automatically sync to your cloud account.</span>
+              <span>Simulations & scenarios automatically sync to your account.</span>
             </div>
 
             <div className="flex items-center justify-between pt-2">
@@ -176,6 +186,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
                 disabled={isLoading}
+                required
                 className="w-full bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl px-4 py-2.5 text-sm font-medium text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none transition-all"
               />
             </div>
@@ -188,6 +199,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 disabled={isLoading}
+                required
                 className="w-full bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl px-4 py-2.5 text-sm font-medium text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none transition-all"
               />
             </div>
@@ -227,10 +239,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setMode(mode === 'SIGN_IN' ? 'SIGN_UP' : 'SIGN_IN');
+                  setMode((prev) => (prev === 'SIGN_IN' ? 'SIGN_UP' : 'SIGN_IN'));
                   setError(null);
+                  setSuccessMessage(null);
                 }}
-                className="text-xs text-charcoal-500 hover:text-charcoal-900 font-semibold underline underline-offset-2 transition-colors cursor-pointer"
+                className="text-xs text-charcoal-600 hover:text-charcoal-950 font-bold underline underline-offset-2 transition-colors cursor-pointer"
               >
                 {mode === 'SIGN_IN' ? 'Create account' : 'Existing user? Sign in'}
               </button>
