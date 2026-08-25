@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Activity,
   CheckCircle2,
   HelpCircle,
   BarChart2,
@@ -86,8 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => navigate('/')}
           className="flex items-center space-x-3 cursor-pointer group"
         >
-          <div className="p-2 rounded-xl bg-charcoal-900 text-cream-100 shadow-command transition-all">
-            <Activity className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-xl overflow-hidden shadow-command border border-charcoal-900/10 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
+            <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-cover rounded-lg" />
           </div>
           <div>
             <div className="flex items-center space-x-2">

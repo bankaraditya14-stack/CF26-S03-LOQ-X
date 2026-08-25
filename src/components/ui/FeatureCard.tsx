@@ -12,8 +12,8 @@ export interface FeatureCardProps {
 }
 
 /**
- * FeatureCard component with centered icon badge, smooth lift animation,
- * and adaptive theme styling for Cascade City.
+ * FeatureCard component with centered circular icon, smooth lift animation,
+ * and adaptive styling for Cascade City.
  */
 export const FeatureCard: React.FC<FeatureCardProps> = ({
   icon,
@@ -28,17 +28,16 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
     <div
       onClick={onClick}
       className={clsx(
-        'group relative bg-white border border-charcoal-900/10 rounded-2xl p-8 flex flex-col items-center text-center shadow-command',
-        'transition-all duration-300 ease-out',
-        'hover:shadow-command-lg hover:-translate-y-2 hover:border-charcoal-900/25',
-        onClick && 'cursor-pointer',
+        'group relative bg-white border border-charcoal-900/15 rounded-2xl p-8 flex flex-col items-center text-center shadow-command cursor-pointer',
+        'transform transition-all duration-300 ease-in-out',
+        'hover:-translate-y-2.5 hover:shadow-command-lg hover:border-charcoal-900/40',
         className
       )}
     >
       {badge && (
         <span
           className={clsx(
-            'absolute top-4 right-4 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border',
+            'absolute top-4 right-4 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border transition-all duration-300',
             badgeColor || 'bg-cream-100 text-charcoal-700 border-charcoal-900/10'
           )}
         >
@@ -46,7 +45,7 @@ export const FeatureCard: React.FC<FeatureCardProps> = ({
         </span>
       )}
 
-      {/* Icon Container with subtle scale on hover */}
+      {/* Centered Circular Icon Container with subtle scale on hover */}
       <div className="mb-6 p-4 rounded-full bg-cream-100 text-charcoal-900 border border-charcoal-900/10 shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:bg-cream-200">
         {icon}
       </div>

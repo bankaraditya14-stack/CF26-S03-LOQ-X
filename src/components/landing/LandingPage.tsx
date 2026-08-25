@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Activity,
   ArrowRight,
   ShieldCheck,
   Zap,
@@ -35,8 +34,8 @@ export const LandingPage: React.FC = () => {
       {/* Top Engineering Nav Header */}
       <header className="w-full bg-cream-100/95 backdrop-blur-md border-b border-charcoal-900/10 px-6 py-3.5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center space-x-3.5">
-          <div className="p-2 rounded-xl bg-charcoal-900 text-cream-100 shadow-command">
-            <Activity className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-command border border-charcoal-900/10 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5">
+            <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-cover rounded-lg" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
@@ -110,7 +109,7 @@ export const LandingPage: React.FC = () => {
           <InteractiveHoverButton
             text="LAUNCH SIMULATOR"
             onClick={() => navigate('/simulator')}
-            className="px-4 py-2 text-xs"
+            className="h-9 px-5 text-xs"
           />
         </div>
       </header>
@@ -142,7 +141,7 @@ export const LandingPage: React.FC = () => {
               <InteractiveHoverButton
                 text="LAUNCH SIMULATOR"
                 onClick={() => navigate('/simulator')}
-                className="px-7 py-3.5 text-sm"
+                className="h-12 px-8 text-sm"
               />
 
               <button
