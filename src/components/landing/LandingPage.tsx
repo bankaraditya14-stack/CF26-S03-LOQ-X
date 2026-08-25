@@ -25,6 +25,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { AuthModal } from '../auth/AuthModal';
 import { InteractiveHoverButton } from '../ui/InteractiveHoverButton';
 import { FeatureCard } from '../ui/FeatureCard';
+import { StrokeText } from '../ui/StrokeText';
 
 export const LandingPage: React.FC = () => {
   const { user, isCloudConnected, openAuthModal, isAuthModalOpen, closeAuthModal, signOut } = useAuth();
@@ -142,9 +143,25 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-charcoal-900 font-heading leading-tight">
-              Understand the Failure. <br />
-              <span className="text-mutedpurple-500">Predict the Cascade.</span> <br />
-              Plan the Recovery.
+              <span>Understand the Failure.</span>
+              <div className="w-full max-w-2xl -my-1 sm:-my-2">
+                <StrokeText
+                  text="Predict the Cascade."
+                  strokeColor="#7E7497"
+                  fillColor="#7E7497"
+                  strokeWidth={1.4}
+                  drawDuration={1.6}
+                  fillDelay={0.2}
+                  stagger={0.05}
+                  ease="power2.out"
+                  trigger="mount"
+                  fillMode="wipe"
+                  fontSize={64}
+                  fontWeight={800}
+                  letterSpacing={-2}
+                />
+              </div>
+              <span>Plan the Recovery.</span>
             </h1>
 
             <p className="text-lg text-charcoal-500 max-w-3xl leading-relaxed">
