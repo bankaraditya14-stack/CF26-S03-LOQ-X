@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Activity,
   ArrowLeft,
   CheckCircle2,
   FileText,
@@ -701,8 +700,8 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
             onClick={() => navigate('/')}
             className="flex items-center space-x-3 cursor-pointer group"
           >
-            <div className="p-2 rounded-xl bg-charcoal-900 text-cream-100 shadow-command transition-all">
-              <Activity className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-command border border-charcoal-900/15 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
+              <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-contain rounded-lg" />
             </div>
             <div>
               <div className="flex items-center space-x-2">

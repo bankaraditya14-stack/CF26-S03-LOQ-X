@@ -31,7 +31,7 @@ describe('End-to-End Live Supabase Integration & RLS Verification', () => {
 
     expect(runError).toBeNull();
     expect(Array.isArray(runs)).toBe(true);
-  });
+  }, 15000);
 
   it('performs full authentication flow: signUp, signIn, session verification', async () => {
     // 1. Sign up new test user

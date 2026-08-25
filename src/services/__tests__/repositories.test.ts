@@ -11,6 +11,7 @@ import {
   SimulationRunRepository,
 } from '../simulationRunRepository';
 import { isSupabaseConfigured } from '../supabaseClient';
+import * as supabaseClientModule from '../supabaseClient';
 import { Scenario, ScenarioRow, SimulationRunRow, SimulationMetrics, SimulationEvent } from '../../types';
 
 // Mock localStorage for headless Node test environment
@@ -18,7 +19,7 @@ const mockStorage: Record<string, string> = {};
 const localStorageMock = {
   getItem: (key: string) => mockStorage[key] ?? null,
   setItem: (key: string, value: string) => {
-    mockStorage[key] = value;
+    mockStorage[key] = String(value);
   },
   removeItem: (key: string) => {
     delete mockStorage[key];
@@ -35,12 +36,12 @@ const localStorageMock = {
     return Object.keys(mockStorage)[index] ?? null;
   },
 };
-if (typeof globalThis.localStorage === 'undefined') {
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: localStorageMock,
-    writable: true,
-  });
-}
+
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+  configurable: true,
+});
 
 describe('Supabase Client Configuration', () => {
   it('handles unconfigured environment variables safely without crashing', () => {
@@ -234,11 +235,9 @@ describe('SimulationRunRepository Transformations', () => {
   });
 });
 
-import * as supabaseClientModule from '../supabaseClient';
-
 describe('Repository Offline & LocalStorage Fallback', () => {
   beforeEach(() => {
-    localStorage.clear();
+    localStorageMock.clear();
     vi.spyOn(supabaseClientModule, 'getSupabaseClient').mockReturnValue(null);
   });
 
