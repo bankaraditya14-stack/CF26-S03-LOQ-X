@@ -24,6 +24,7 @@ import { CascadeInteractivePreview } from './CascadeInteractivePreview';
 import { navigate } from '../../utils/router';
 import { useAuth } from '../../hooks/useAuth';
 import { AuthModal } from '../auth/AuthModal';
+import { InteractiveHoverButton } from '../ui/InteractiveHoverButton';
 
 export const LandingPage: React.FC = () => {
   const { user, isCloudConnected, openAuthModal, isAuthModalOpen, closeAuthModal, signOut } = useAuth();
@@ -105,13 +106,11 @@ export const LandingPage: React.FC = () => {
             </button>
           )}
 
-          <button
+          <InteractiveHoverButton
+            text="LAUNCH SIMULATOR"
             onClick={() => navigate('/simulator')}
-            className="px-4 py-2 rounded-xl bg-charcoal-900 hover:bg-charcoal-700 text-cream-100 font-bold text-xs font-mono tracking-wider transition-all flex items-center space-x-2 shadow-command cursor-pointer"
-          >
-            <span>ENTER MISSION CONTROL</span>
-            <ArrowRight className="w-4 h-4 text-cream-100" />
-          </button>
+            className="px-4 py-2 text-xs"
+          />
         </div>
       </header>
 
@@ -139,13 +138,11 @@ export const LandingPage: React.FC = () => {
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              <button
+              <InteractiveHoverButton
+                text="LAUNCH SIMULATOR"
                 onClick={() => navigate('/simulator')}
-                className="px-6 py-3.5 rounded-xl bg-charcoal-900 hover:bg-charcoal-700 text-cream-100 font-bold text-sm font-mono tracking-wider transition-all flex items-center space-x-2.5 shadow-command cursor-pointer"
-              >
-                <span>ENTER MISSION CONTROL</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                className="px-7 py-3.5 text-sm"
+              />
 
               <button
                 onClick={() => {
