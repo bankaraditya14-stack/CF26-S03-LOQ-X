@@ -1,6 +1,7 @@
 import { Scenario, ScenarioRow, ScenarioInsert } from '../types';
 import { getSupabaseClient } from './supabaseClient';
 import { StorageService } from './storageService';
+import { SecurityValidator } from '../utils/securityValidator';
 
 const DB_TIMEOUT_MS = 2500;
 
@@ -26,9 +27,9 @@ async function executeWithTimeout<T>(promise: PromiseLike<T>, timeoutMs = DB_TIM
 export function scenarioRowToDomain(row: ScenarioRow): Scenario {
   return {
     id: row.id,
-    name: row.name,
-    description: row.description ?? '',
-    graphVersion: row.graph_version,
+    name: SecurityValidator.sanitizeString(row.name, 100, 'Custom Scenario'),
+    description: SecurityValidator.sanitizeString(row.description, 500, ''),
+    graphVersion: SecurityValidator.sanitizeString(row.graph_version, 50, 'city-v1'),
     initialFailures: row.initial_failures ?? [],
     parameters: row.parameters ?? {
       maxSimulationTime: 60,
@@ -46,15 +47,20 @@ export function domainToScenarioInsert(
   scenario: Scenario,
   userId: string | null = null
 ): ScenarioInsert {
+  const validUserId = SecurityValidator.isValidUserId(userId) ? userId : null;
   return {
-    id: scenario.id,
-    user_id: userId,
-    name: scenario.name,
-    description: scenario.description,
-    graph_version: scenario.graphVersion,
-    initial_failures: scenario.initialFailures,
-    parameters: scenario.parameters,
-    recovery_actions: scenario.recoveryActions,
+    id: SecurityValidator.sanitizeString(scenario.id, 64, `sc-${Date.now()}`),
+    user_id: validUserId,
+    name: SecurityValidator.sanitizeString(scenario.name, 100, 'Custom Scenario'),
+    description: SecurityValidator.sanitizeString(scenario.description, 500, ''),
+    graph_version: SecurityValidator.sanitizeString(scenario.graphVersion, 50, 'city-v1'),
+    initial_failures: scenario.initialFailures ?? [],
+    parameters: scenario.parameters ?? {
+      maxSimulationTime: 60,
+      defaultPropagationDelay: 5,
+      defaultRecoveryDuration: 10,
+    },
+    recovery_actions: scenario.recoveryActions ?? [],
   };
 }
 
@@ -80,8 +86,11 @@ export class ScenarioRepository {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (userId) {
+      if (userId && SecurityValidator.isValidUserId(userId)) {
         query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      } else {
+        // Unauthenticated or non-alphanumeric userId: query public system templates only
+        query = query.is('user_id', null);
       }
 
       const { data, error } = await executeWithTimeout(query);
@@ -108,7 +117,8 @@ export class ScenarioRepository {
    * Retrieves a single scenario by its ID.
    */
   public static async getScenario(id: string): Promise<Scenario | null> {
-    const local = StorageService.getCustomScenarios().find(s => s.id === id);
+    const sanitizedId = SecurityValidator.sanitizeString(id, 64);
+    const local = StorageService.getCustomScenarios().find(s => s.id === sanitizedId);
 
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -120,7 +130,7 @@ export class ScenarioRepository {
         supabase
           .from('scenarios')
           .select('*')
-          .eq('id', id)
+          .eq('id', sanitizedId)
           .maybeSingle()
       );
 
@@ -139,17 +149,21 @@ export class ScenarioRepository {
    * Creates or updates a scenario in persistent storage.
    */
   public static async createScenario(scenario: Scenario, userId: string | null = null): Promise<Scenario> {
+    const validUserId = SecurityValidator.isValidUuid(userId) ? userId : null;
+    const validated = SecurityValidator.validateScenario(scenario);
+    const safeScenario = validated.valid && validated.sanitized ? validated.sanitized : scenario;
+
     // 1. Always persist to localStorage for offline reliability
-    StorageService.saveCustomScenario(scenario);
+    StorageService.saveCustomScenario(safeScenario);
 
     const supabase = getSupabaseClient();
     if (!supabase) {
-      return scenario;
+      return safeScenario;
     }
 
     // 2. Persist to Supabase if available
     try {
-      const insertPayload = domainToScenarioInsert(scenario, userId);
+      const insertPayload = domainToScenarioInsert(safeScenario, validUserId);
       const { data, error } = await executeWithTimeout(
         supabase
           .from('scenarios')
@@ -160,13 +174,13 @@ export class ScenarioRepository {
 
       if (error || !data) {
         console.warn('Failed to persist scenario to Supabase, saved to localStorage only:', error);
-        return scenario;
+        return safeScenario;
       }
 
       return scenarioRowToDomain(data as ScenarioRow);
     } catch (e) {
       console.warn('Supabase insert failed or timed out, retained in localStorage:', e);
-      return scenario;
+      return safeScenario;
     }
   }
 
@@ -174,8 +188,9 @@ export class ScenarioRepository {
    * Deletes a scenario by ID.
    */
   public static async deleteScenario(id: string): Promise<void> {
+    const sanitizedId = SecurityValidator.sanitizeString(id, 64);
     // 1. Delete from local storage
-    StorageService.deleteCustomScenario(id);
+    StorageService.deleteCustomScenario(sanitizedId);
 
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -188,7 +203,7 @@ export class ScenarioRepository {
         supabase
           .from('scenarios')
           .delete()
-          .eq('id', id)
+          .eq('id', sanitizedId)
       );
 
       if (error) {
@@ -199,3 +214,4 @@ export class ScenarioRepository {
     }
   }
 }
+

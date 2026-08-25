@@ -17,6 +17,7 @@ import { GraphValidator } from '../../engine/graphValidation';
 import { SYNTHETIC_CITY_GRAPH } from '../../data/cityGraph';
 import { ScenarioRepository } from '../../services/scenarioRepository';
 import { useAuth } from '../../hooks/useAuth';
+import { SecurityValidator } from '../../utils/securityValidator';
 
 interface CustomScenarioBuilderProps {
   nodes: ServiceNode[];
@@ -56,6 +57,7 @@ export const CustomScenarioBuilder: React.FC<CustomScenarioBuilderProps> = ({
   }, []);
 
   const toggleNodeSelection = (id: string) => {
+    if (!SecurityValidator.isValidNodeId(id)) return;
     if (selectedNodeIds.includes(id)) {
       if (selectedNodeIds.length === 1) return; // keep at least one
       setSelectedNodeIds(selectedNodeIds.filter((nodeId) => nodeId !== id));
@@ -65,14 +67,18 @@ export const CustomScenarioBuilder: React.FC<CustomScenarioBuilderProps> = ({
   };
 
   const handleBuildAndRun = () => {
-    if (selectedNodeIds.length === 0 || !validationReport.valid) return;
+    const validNodeIds = selectedNodeIds.filter((id) => SecurityValidator.isValidNodeId(id));
+    if (validNodeIds.length === 0 || !validationReport.valid) return;
+
+    const safeName = SecurityValidator.sanitizeString(scenarioName, 100, 'Custom Multi-Node Disruption');
+    const safeFailureType = SecurityValidator.isValidFailureType(failureType) ? failureType : 'Equipment Failure';
 
     const customScenario: Scenario = {
       id: `custom-${Date.now()}`,
-      name: scenarioName.trim() || 'Custom Multi-Node Disruption',
-      description: `Custom ${failureType.toLowerCase()} scenario targeting ${selectedNodeIds.length} initial municipal service(s).`,
+      name: safeName,
+      description: `Custom ${safeFailureType.toLowerCase()} scenario targeting ${validNodeIds.length} initial municipal service(s).`,
       graphVersion: 'city-v1',
-      initialFailures: selectedNodeIds.map((id) => ({
+      initialFailures: validNodeIds.map((id) => ({
         nodeId: id,
         time: 0,
       })),
@@ -88,15 +94,19 @@ export const CustomScenarioBuilder: React.FC<CustomScenarioBuilderProps> = ({
   };
 
   const handleSaveScenario = async () => {
-    if (selectedNodeIds.length === 0) return;
+    const validNodeIds = selectedNodeIds.filter((id) => SecurityValidator.isValidNodeId(id));
+    if (validNodeIds.length === 0) return;
 
     setIsSaving(true);
+    const safeName = SecurityValidator.sanitizeString(scenarioName, 100, 'Custom Multi-Node Disruption');
+    const safeFailureType = SecurityValidator.isValidFailureType(failureType) ? failureType : 'Equipment Failure';
+
     const customScenario: Scenario = {
       id: `custom-${Date.now()}`,
-      name: scenarioName.trim() || 'Custom Multi-Node Disruption',
-      description: `Custom ${failureType.toLowerCase()} scenario with ${selectedNodeIds.length} initial disruptions.`,
+      name: safeName,
+      description: `Custom ${safeFailureType.toLowerCase()} scenario with ${validNodeIds.length} initial disruptions.`,
       graphVersion: 'city-v1',
-      initialFailures: selectedNodeIds.map((id) => ({
+      initialFailures: validNodeIds.map((id) => ({
         nodeId: id,
         time: 0,
       })),

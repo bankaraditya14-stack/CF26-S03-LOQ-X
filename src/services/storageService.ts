@@ -11,10 +11,43 @@ export interface SavedSimulationRun {
 const CUSTOM_SCENARIOS_KEY = 'cascade_city_custom_scenarios';
 const SAVED_RUNS_KEY = 'cascade_city_saved_runs';
 
+// Universal storage wrapper with seamless in-memory fallback for SSR/tests
+const memoryStore = new Map<string, string>();
+
+const safeStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return memoryStore.get(key) ?? null;
+      }
+    }
+    return memoryStore.get(key) ?? null;
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(key, value);
+        return;
+      } catch {}
+    }
+    memoryStore.set(key, value);
+  },
+  removeItem: (key: string): void => {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.removeItem(key);
+      } catch {}
+    }
+    memoryStore.delete(key);
+  },
+};
+
 export class StorageService {
   public static getCustomScenarios(): Scenario[] {
     try {
-      const data = localStorage.getItem(CUSTOM_SCENARIOS_KEY);
+      const data = safeStorage.getItem(CUSTOM_SCENARIOS_KEY);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
@@ -25,7 +58,7 @@ export class StorageService {
     try {
       const existing = this.getCustomScenarios().filter(s => s.id !== scenario.id);
       existing.push(scenario);
-      localStorage.setItem(CUSTOM_SCENARIOS_KEY, JSON.stringify(existing));
+      safeStorage.setItem(CUSTOM_SCENARIOS_KEY, JSON.stringify(existing));
     } catch (e) {
       console.error('Failed to save scenario to localStorage', e);
     }
@@ -34,7 +67,7 @@ export class StorageService {
   public static deleteCustomScenario(scenarioId: string): void {
     try {
       const existing = this.getCustomScenarios().filter(s => s.id !== scenarioId);
-      localStorage.setItem(CUSTOM_SCENARIOS_KEY, JSON.stringify(existing));
+      safeStorage.setItem(CUSTOM_SCENARIOS_KEY, JSON.stringify(existing));
     } catch (e) {
       console.error('Failed to delete scenario', e);
     }
@@ -42,7 +75,7 @@ export class StorageService {
 
   public static getSavedRun(scenarioId: string): SavedSimulationRun | null {
     try {
-      const data = localStorage.getItem(`${SAVED_RUNS_KEY}_${scenarioId}`);
+      const data = safeStorage.getItem(`${SAVED_RUNS_KEY}_${scenarioId}`);
       return data ? JSON.parse(data) : null;
     } catch {
       return null;
@@ -58,7 +91,7 @@ export class StorageService {
         events,
         metrics,
       };
-      localStorage.setItem(`${SAVED_RUNS_KEY}_${scenarioId}`, JSON.stringify(run));
+      safeStorage.setItem(`${SAVED_RUNS_KEY}_${scenarioId}`, JSON.stringify(run));
     } catch (e) {
       console.error('Failed to save simulation run', e);
     }

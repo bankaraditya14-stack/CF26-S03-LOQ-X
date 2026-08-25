@@ -47,13 +47,17 @@ export class ScenarioValidator {
           `Edge "${edge.id}" references non-existent target node: "${edge.to}"`
         );
       }
-      if (edge.propagationDelay < 0) {
+      if (edge.from === edge.to) {
+        errors.push(`Self-loop detected on node "${edge.from}" in edge "${edge.id}"`);
+      }
+
+      if (typeof edge.propagationDelay !== 'number' || Number.isNaN(edge.propagationDelay) || edge.propagationDelay < 0) {
         errors.push(
-          `Edge "${edge.id}" has invalid negative propagation delay: ${edge.propagationDelay}`
+          `Edge "${edge.id}" has invalid negative or non-numeric propagation delay: ${edge.propagationDelay}`
         );
       }
 
-      if (nodeMap.has(edge.from) && nodeMap.has(edge.to)) {
+      if (nodeMap.has(edge.from) && nodeMap.has(edge.to) && edge.from !== edge.to) {
         adjacency.get(edge.from)?.push(edge.to);
       }
     }
@@ -91,28 +95,28 @@ export class ScenarioValidator {
 
     // 4. Validate scenario initial failures if scenario provided
     if (scenario) {
-      for (const failure of scenario.initialFailures) {
+      for (const failure of scenario.initialFailures || []) {
         if (!nodeMap.has(failure.nodeId)) {
           errors.push(
             `Scenario "${scenario.name}" specifies non-existent initial failure node: "${failure.nodeId}"`
           );
         }
-        if (failure.time < 0) {
+        if (typeof failure.time !== 'number' || Number.isNaN(failure.time) || failure.time < 0) {
           errors.push(
-            `Scenario specifies negative failure timestamp: ${failure.time}`
+            `Scenario specifies invalid or negative failure timestamp: ${failure.time}`
           );
         }
       }
 
-      for (const recovery of scenario.recoveryActions) {
+      for (const recovery of scenario.recoveryActions || []) {
         if (!nodeMap.has(recovery.nodeId)) {
           errors.push(
             `Recovery action references non-existent node: "${recovery.nodeId}"`
           );
         }
-        if (recovery.duration <= 0) {
+        if (typeof recovery.duration !== 'number' || Number.isNaN(recovery.duration) || recovery.duration <= 0) {
           errors.push(
-            `Recovery action has non-positive duration: ${recovery.duration}`
+            `Recovery action has non-positive or invalid duration: ${recovery.duration}`
           );
         }
       }

@@ -7,6 +7,7 @@ import {
 } from '../types';
 import { getSupabaseClient } from './supabaseClient';
 import { StorageService, SavedSimulationRun } from './storageService';
+import { SecurityValidator } from '../utils/securityValidator';
 
 const DB_TIMEOUT_MS = 2500;
 
@@ -130,10 +131,11 @@ export function simulationRunRowToDomain(
 export function domainToSimulationRunInsert(
   params: SaveSimulationRunParams
 ): SimulationRunInsert {
+  const validUserId = SecurityValidator.isValidUserId(params.userId) ? params.userId : null;
   return {
-    user_id: params.userId ?? null,
-    scenario_id: params.scenarioId === 'custom' ? null : params.scenarioId,
-    graph_version: params.graphVersion ?? '1.0.0',
+    user_id: validUserId,
+    scenario_id: params.scenarioId === 'custom' ? null : SecurityValidator.sanitizeString(params.scenarioId, 64),
+    graph_version: SecurityValidator.sanitizeString(params.graphVersion, 50, '1.0.0'),
     initial_failures: params.initialFailures ?? [],
     metrics: params.metrics,
     event_log: params.events,
@@ -152,14 +154,15 @@ export class SimulationRunRepository {
    * Saves a simulation run to Supabase PostgreSQL (primary) and localStorage (fallback).
    */
   public static async saveRun(params: SaveSimulationRunParams): Promise<SavedSimulationRun> {
-    const scenarioName = params.scenarioName ?? 'Simulation Run';
+    const scenarioName = SecurityValidator.sanitizeString(params.scenarioName, 100, 'Simulation Run');
+    const validScenarioId = SecurityValidator.sanitizeString(params.scenarioId, 64, 'custom');
     const hash =
       params.deterministicHash ??
       generateDeterministicHash(params.metrics, params.events);
-    const dedupeKey = `${params.scenarioId}_${hash}`;
+    const dedupeKey = `${validScenarioId}_${hash}`;
 
     const savedLocal: SavedSimulationRun = {
-      scenarioId: params.scenarioId,
+      scenarioId: validScenarioId,
       scenarioName,
       timestamp: Date.now(),
       events: params.events,
@@ -175,21 +178,23 @@ export class SimulationRunRepository {
 
     // 1. Sync to local storage for offline continuity
     StorageService.saveRun(
-      params.scenarioId,
+      validScenarioId,
       scenarioName,
       params.events,
       params.metrics
     );
 
     const supabase = getSupabaseClient();
-    if (!supabase) {
+    if (!supabase || !SecurityValidator.isValidUserId(params.userId)) {
       return savedLocal;
     }
 
-    // 2. Persist to Supabase PostgreSQL as PRIMARY
+    // 2. Persist to Supabase PostgreSQL as PRIMARY for authenticated users
     try {
       const insertPayload = domainToSimulationRunInsert({
         ...params,
+        scenarioId: validScenarioId,
+        scenarioName,
         deterministicHash: hash,
       });
 
@@ -214,19 +219,16 @@ export class SimulationRunRepository {
    */
   public static async listUserRuns(userId?: string | null): Promise<SavedSimulationRun[]> {
     const supabase = getSupabaseClient();
-    if (!supabase) {
+    if (!supabase || !userId || !SecurityValidator.isValidUserId(userId)) {
       return getLocalSavedRuns();
     }
 
     try {
-      let query = supabase
+      const query = supabase
         .from('simulation_runs')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
-
-      if (userId) {
-        query = query.eq('user_id', userId);
-      }
 
       const { data, error } = await executeWithTimeout(query);
       if (error || !data || data.length === 0) {

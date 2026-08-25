@@ -14,6 +14,8 @@ import {
   FailureContext,
 } from './interventionRecommendationService';
 import { AiRecoveryRepository } from './aiRecoveryRepository';
+import { SecurityValidator } from '../utils/securityValidator';
+import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 // Demographic weights per infrastructure node in Cascade City
 const NODE_POPULATION_SERVED: Record<string, number> = {
@@ -164,28 +166,47 @@ export class AdaptiveRecoveryService {
       return existing;
     }
 
-    // 3. Request Gemini AI Analysis from server endpoint
+    // 3. Request Gemini AI Analysis from server-side layer (Edge Function or dev proxy)
     let aiResponse: AiGeminiResponse | null = null;
     let source: 'GEMINI_AI' | 'DETERMINISTIC_FALLBACK' = 'GEMINI_AI';
 
-    try {
-      const response = await fetch('/api/gemini/recovery-analysis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(context),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          aiResponse = this.validateGeminiResponse(result.data, context);
+    // 3a. First attempt: Supabase Edge Function (Production architecture)
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke(
+          'gemini-recovery-analysis',
+          { body: context }
+        );
+        if (!edgeError && edgeData?.success && edgeData?.data) {
+          aiResponse = SecurityValidator.sanitizeGeminiOutput(edgeData.data, context);
         }
+      } catch (e) {
+        console.warn('[AdaptiveRecoveryService] Edge Function invoke failed, attempting server proxy fallback:', e);
       }
-    } catch (e) {
-      console.warn('[AdaptiveRecoveryService] Server AI proxy call failed, falling back:', e);
     }
 
-    // 4. If AI is unavailable or failed, use deterministic fallback
+    // 3b. Second attempt: Local server proxy endpoint (/api/gemini/recovery-analysis)
+    if (!aiResponse) {
+      try {
+        const response = await fetch('/api/gemini/recovery-analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(context),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            aiResponse = SecurityValidator.sanitizeGeminiOutput(result.data, context);
+          }
+        }
+      } catch (e) {
+        // Expected when running in test runners or offline
+        console.warn('[AdaptiveRecoveryService] Server AI proxy unavailable, engaging deterministic fallback:', e);
+      }
+    }
+
+    // 4. If AI is unavailable or returned invalid output, use deterministic fallback
     if (!aiResponse) {
       aiResponse = this.generateDeterministicFallbackResponse(context);
       source = 'DETERMINISTIC_FALLBACK';
@@ -234,55 +255,13 @@ export class AdaptiveRecoveryService {
 
   /**
    * Sanitizes and validates Gemini JSON output to prevent hallucinations or invalid node IDs.
+   * Delegates to centralized SecurityValidator.
    */
   public static validateGeminiResponse(
     raw: any,
     context: AiSimulationContext
   ): AiGeminiResponse {
-    const validNodeIds = new Set(SYNTHETIC_CITY_GRAPH.nodes.map((n) => n.id));
-
-    const sanitizeStrategy = (s: any, fallbackName: string, defaultActionType: RecoveryActionType): AiRawStrategy => {
-      let targets: string[] = Array.isArray(s?.target_nodes) ? s.target_nodes : [];
-      // Filter to valid nodes only
-      targets = targets.filter((id: string) => validNodeIds.has(id));
-      if (targets.length === 0) {
-        targets = context.allAffectedNodeIds.slice(0, 2);
-      }
-
-      const inferredType = this.inferActionType(s?.name, targets[0]) || defaultActionType;
-
-      return {
-        name: typeof s?.name === 'string' && s.name.trim() ? s.name.toUpperCase() : fallbackName,
-        priority: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].includes(s?.priority) ? s.priority : 'HIGH',
-        reason: typeof s?.reason === 'string' ? s.reason : 'AI mitigation strategy to halt cascade.',
-        target_nodes: targets,
-        actions: Array.isArray(s?.actions) && s.actions.length > 0 ? s.actions : ['Execute rapid mitigation protocol.'],
-        action_type: inferredType,
-        required_resources: typeof s?.required_resources === 'string' ? s.required_resources : this.inferResourceString(inferredType),
-      };
-    };
-
-    const recommended = sanitizeStrategy(raw?.recommended_strategy, 'PRIORITY RESTORATION PROTOCOL', 'BACKUP_POWER');
-    const alternatives: AiRawStrategy[] = Array.isArray(raw?.alternative_strategies)
-      ? raw.alternative_strategies.map((alt: any, idx: number) =>
-          sanitizeStrategy(
-            alt,
-            `ALTERNATIVE PROTOCOL 0${idx + 2}`,
-            idx === 0 ? 'ISOLATE' : idx === 1 ? 'RESTORE_NETWORK' : 'REPAIR'
-          )
-        )
-      : [];
-
-    return {
-      incident_summary: typeof raw?.incident_summary === 'string' ? raw.incident_summary : `Disruption on ${context.rootFailureNodeName} triggered a multi-tier cascade.`,
-      priority_targets: Array.isArray(raw?.priority_targets) && raw.priority_targets.length > 0
-        ? raw.priority_targets
-        : context.criticalServicesAffected,
-      recommended_strategy: recommended,
-      alternative_strategies: alternatives,
-      explanation: typeof raw?.explanation === 'string' ? raw.explanation : 'Root cause mitigation terminates active cascade loops.',
-      confidence: ['HIGH', 'MEDIUM', 'LOW'].includes(raw?.confidence) ? raw.confidence : 'HIGH',
-    };
+    return SecurityValidator.sanitizeGeminiOutput(raw, context);
   }
 
   /**

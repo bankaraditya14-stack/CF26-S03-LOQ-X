@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { AiRecoveryAnalysis } from '../types/adaptiveRecovery';
+import { SecurityValidator } from '../utils/securityValidator';
 
 const LOCAL_STORAGE_KEY = 'cascade_ai_recovery_recommendations';
 
@@ -13,23 +14,26 @@ export class AiRecoveryRepository {
     userId?: string,
     simulationRunId?: string
   ): Promise<string> {
-    const recordId = analysis.id || `ai-rec-${Date.now()}`;
+    const recordId = SecurityValidator.sanitizeString(analysis.id, 64, `ai-rec-${Date.now()}`);
+    const validScenarioId = SecurityValidator.sanitizeString(scenarioId, 64, 'predefined');
+    const validUserId = SecurityValidator.isValidUuid(userId) ? userId : null;
+    const validRunId = SecurityValidator.isValidUuid(simulationRunId) ? simulationRunId : null;
 
     // 1. Always save locally immediately for instant offline cache
     this.saveLocally(analysis);
 
-    // 2. Sync to Supabase if configured
-    if (isSupabaseConfigured() && supabase) {
+    // 2. Sync to Supabase if configured and authenticated
+    if (isSupabaseConfigured() && supabase && validUserId) {
       try {
         const { data, error } = await supabase
           .from('ai_recovery_recommendations')
           .insert({
             id: recordId,
-            user_id: userId || null,
-            simulation_run_id: simulationRunId || null,
-            scenario_id: scenarioId,
-            simulation_hash: analysis.simulationHash,
-            incident_summary: analysis.incidentSummary,
+            user_id: validUserId,
+            simulation_run_id: validRunId,
+            scenario_id: validScenarioId,
+            simulation_hash: SecurityValidator.sanitizeString(analysis.simulationHash, 64),
+            incident_summary: SecurityValidator.sanitizeString(analysis.incidentSummary, 500),
             recommended_strategy: analysis.recommendedStrategy,
             alternative_strategies: analysis.alternativeStrategies,
             confidence: analysis.confidence,
@@ -61,9 +65,10 @@ export class AiRecoveryRepository {
   public static async getAnalysisByHash(
     simulationHash: string
   ): Promise<AiRecoveryAnalysis | null> {
+    const sanitizedHash = SecurityValidator.sanitizeString(simulationHash, 64);
     // 1. Check localStorage first for instant fast response
     const localMatches = this.getLocalAnalyses();
-    const foundLocal = localMatches.find((a) => a.simulationHash === simulationHash);
+    const foundLocal = localMatches.find((a) => a.simulationHash === sanitizedHash);
     if (foundLocal) return foundLocal;
 
     // 2. Query Supabase
@@ -72,7 +77,7 @@ export class AiRecoveryRepository {
         const { data, error } = await supabase
           .from('ai_recovery_recommendations')
           .select('*')
-          .eq('simulation_hash', simulationHash)
+          .eq('simulation_hash', sanitizedHash)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();

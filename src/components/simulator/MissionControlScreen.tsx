@@ -12,7 +12,7 @@ import {
   Sliders,
   Info,
 } from 'lucide-react';
-import { Scenario } from '../../types';
+import { Scenario, SimulationEvent } from '../../types';
 import {
   DigitalTwinNode,
   DependencyLink,
@@ -33,6 +33,7 @@ import { SYNTHETIC_CITY_GRAPH } from '../../data/cityGraph';
 import { PREDEFINED_SCENARIOS } from '../../data/scenarios';
 import { GraphValidator } from '../../engine/graphValidation';
 import { DigitalTwinMap } from './DigitalTwinMap';
+import { CausalCascadeTree } from './CausalCascadeTree';
 import { FailureInjectionPanel } from './FailureInjectionPanel';
 import { CustomScenarioBuilder } from './CustomScenarioBuilder';
 import { LiveTelemetryPanel } from './LiveTelemetryPanel';
@@ -216,6 +217,7 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
   const [selectedInterventionId, setSelectedInterventionId] = useState<string>('');
   const [isInterventionDeployed, setIsInterventionDeployed] = useState<boolean>(false);
   const [recoveryViewTab, setRecoveryViewTab] = useState<'AI' | 'MANUAL'>('AI');
+  const [centerViewTab, setCenterViewTab] = useState<'MAP' | 'TREE'>('MAP');
 
   // Auth & Cloud State
   const { user, isCloudConnected, openAuthModal, isAuthModalOpen, closeAuthModal, signOut } = useAuth();
@@ -227,6 +229,17 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState<boolean>(false);
   const [causalInfo, setCausalInfo] = useState<any>(null);
   const [replayHashInfo, setReplayHashInfo] = useState<{ run1Hash: string; run2Hash: string; match: boolean } | null>(null);
+
+  // Raw Simulation Engine Events for Causal Cascade Tree
+  const rawEngineEvents: SimulationEvent[] = React.useMemo(() => {
+    if (!engineRef.current) return [];
+    return engineRef.current.getEvents();
+  }, [simTimeSec, hasInjected, isInterventionDeployed]);
+
+  const rawRuntimeStates = React.useMemo(() => {
+    if (!engineRef.current) return undefined;
+    return engineRef.current.getState().nodes;
+  }, [simTimeSec, hasInjected, isInterventionDeployed]);
 
   // Graph Validation Report
   const validationReport = React.useMemo(() => {
@@ -852,20 +865,71 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
             )}
           </section>
 
-          {/* Center Column: 2D Digital-Twin Infrastructure Map (6 cols) */}
-          <section className="lg:col-span-6 flex flex-col h-[520px] lg:h-auto min-h-[500px]">
-            <DigitalTwinMap
-              nodes={nodes}
-              links={INITIAL_LINKS}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={(id) => {
-                setSelectedNodeId(id);
-                // Also enable checking causal chain directly
-                handleInspectCausalChain(id);
-              }}
-              isCascadeActive={hasInjected && !isInterventionDeployed}
-              activeCascadeCount={telemetry.affectedNodes}
-            />
+          {/* Center Column: 2D Digital-Twin Infrastructure Map & Causal Tree Switcher (6 cols) */}
+          <section className="lg:col-span-6 flex flex-col space-y-2.5 min-h-[500px]">
+            {/* View Switcher Bar */}
+            <div className="flex items-center justify-between bg-white border border-charcoal-900/15 rounded-xl p-1 font-mono text-xs shadow-sm">
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setCenterViewTab('MAP')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                    centerViewTab === 'MAP'
+                      ? 'bg-charcoal-900 text-cream-100 shadow-command'
+                      : 'text-charcoal-500 hover:text-charcoal-900'
+                  }`}
+                >
+                  <span>2D DIGITAL TWIN MAP</span>
+                </button>
+                <button
+                  onClick={() => setCenterViewTab('TREE')}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                    centerViewTab === 'TREE'
+                      ? 'bg-charcoal-900 text-cream-100 shadow-command'
+                      : 'text-charcoal-500 hover:text-charcoal-900'
+                  }`}
+                >
+                  <span>CAUSAL CASCADE TREE</span>
+                  {rawEngineEvents.length > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-red-100 text-red-700 font-bold border border-red-300">
+                      {rawEngineEvents.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <span className="text-[10px] text-charcoal-400 font-medium px-2 hidden sm:inline">
+                {centerViewTab === 'MAP' ? 'Spatial Grid View' : 'Root-Cause Dependency Lineage'}
+              </span>
+            </div>
+
+            {centerViewTab === 'MAP' ? (
+              <div className="h-[520px] lg:h-auto min-h-[460px] flex flex-col">
+                <DigitalTwinMap
+                  nodes={nodes}
+                  links={INITIAL_LINKS}
+                  selectedNodeId={selectedNodeId}
+                  onSelectNode={(id) => {
+                    setSelectedNodeId(id);
+                    // Also enable checking causal chain directly
+                    handleInspectCausalChain(id);
+                  }}
+                  isCascadeActive={hasInjected && !isInterventionDeployed}
+                  activeCascadeCount={telemetry.affectedNodes}
+                />
+              </div>
+            ) : (
+              <div className="min-h-[460px] flex flex-col">
+                <CausalCascadeTree
+                  nodes={SYNTHETIC_CITY_GRAPH.nodes}
+                  edges={SYNTHETIC_CITY_GRAPH.edges}
+                  events={rawEngineEvents}
+                  runtimeStates={rawRuntimeStates}
+                  onSelectNode={(id) => setSelectedNodeId(id)}
+                  onInspectCausalChain={handleInspectCausalChain}
+                  isCascadeActive={hasInjected && !isInterventionDeployed}
+                />
+              </div>
+            )}
           </section>
 
           {/* Right Column: Live System Telemetry (3 cols) */}
@@ -1021,7 +1085,22 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
           </div>
         )}
 
-        {/* 5. Bottom Cascade Event Stream Timeline */}
+        {/* 5. Dynamic Causal Cascade Propagation Tree (Full-Width Simulation Result) */}
+        {hasInjected && centerViewTab === 'MAP' && (
+          <section className="w-full animate-in fade-in">
+            <CausalCascadeTree
+              nodes={SYNTHETIC_CITY_GRAPH.nodes}
+              edges={SYNTHETIC_CITY_GRAPH.edges}
+              events={rawEngineEvents}
+              runtimeStates={rawRuntimeStates}
+              onSelectNode={(id) => setSelectedNodeId(id)}
+              onInspectCausalChain={handleInspectCausalChain}
+              isCascadeActive={hasInjected && !isInterventionDeployed}
+            />
+          </section>
+        )}
+
+        {/* 6. Bottom Cascade Event Stream Timeline */}
         <section className="w-full">
           <CascadeEventStream
             events={events}

@@ -1,11 +1,62 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import http from 'http';
-import https from 'https';
+
+// In-memory sliding-window rate limiter for Gemini advisory API proxy
+// Target: 10 requests / 60 seconds per client IP
+interface RateLimitEntry {
+  timestamps: number[];
+}
+const rateLimitMap = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUESTS_PER_WINDOW = 10;
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip) || { timestamps: [] };
+  
+  // Filter out timestamps older than window
+  entry.timestamps = entry.timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+
+  if (entry.timestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldest = entry.timestamps[0];
+    const retryAfter = Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  entry.timestamps.push(now);
+  rateLimitMap.set(ip, entry);
+  return { allowed: true };
+}
+
+// Clean up stale rate limiter entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap.entries()) {
+    entry.timestamps = entry.timestamps.filter((ts) => now - ts < RATE_LIMIT_WINDOW_MS);
+    if (entry.timestamps.length === 0) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const geminiApiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+
+  const securityHeaders = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com",
+      "img-src 'self' data: blob:",
+    ].join('; '),
+  };
 
   return {
     plugins: [
@@ -21,9 +72,38 @@ export default defineConfig(({ mode }) => {
               return;
             }
 
+            // Extract client IP for server-side rate limiting
+            const forwarded = req.headers['x-forwarded-for'];
+            const clientIp = typeof forwarded === 'string'
+              ? forwarded.split(',')[0].trim()
+              : req.socket.remoteAddress || '127.0.0.1';
+
+            const rateCheck = checkRateLimit(clientIp);
+            if (!rateCheck.allowed) {
+              res.statusCode = 429;
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Retry-After', String(rateCheck.retryAfter || 60));
+              res.end(
+                JSON.stringify({
+                  success: false,
+                  fallback: true,
+                  error: 'HTTP 429: Too Many Requests. Gemini advisory rate limit exceeded (10 req/min).',
+                  retryAfter: rateCheck.retryAfter,
+                })
+              );
+              return;
+            }
+
             let body = '';
             req.on('data', (chunk) => {
               body += chunk;
+              // Payload size guard: reject payloads > 512KB
+              if (body.length > 512 * 1024) {
+                res.statusCode = 413;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Payload Too Large' }));
+                req.destroy();
+              }
             });
 
             req.on('end', async () => {
@@ -100,7 +180,7 @@ Generate failure-specific strategies tailored precisely to this failure topology
                   },
                 });
 
-                // Call Google Gemini API
+                // Call Google Gemini API via secure server-side request
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
                 
                 const response = await fetch(url, {
@@ -165,6 +245,11 @@ Generate failure-specific strategies tailored precisely to this failure topology
     server: {
       port: 3000,
       open: false,
+      headers: securityHeaders,
+    },
+    preview: {
+      port: 3000,
+      headers: securityHeaders,
     },
   };
 });
