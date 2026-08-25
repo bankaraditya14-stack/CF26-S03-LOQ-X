@@ -687,8 +687,8 @@ export const MissionControlScreen: React.FC<MissionControlScreenProps> = ({ scen
             onClick={() => navigate('/')}
             className="flex items-center space-x-3 cursor-pointer group"
           >
-            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-command border border-charcoal-900/10 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
-              <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-cover rounded-lg" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-command border border-charcoal-900/15 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5 transition-transform group-hover:scale-105">
+              <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-contain rounded-lg" />
             </div>
             <div>
               <div className="flex items-center space-x-2">

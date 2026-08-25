@@ -34,8 +34,8 @@ export const LandingPage: React.FC = () => {
       {/* Top Engineering Nav Header */}
       <header className="w-full bg-cream-100/95 backdrop-blur-md border-b border-charcoal-900/10 px-6 py-3.5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-command border border-charcoal-900/10 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5">
-            <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-cover rounded-lg" />
+          <div className="w-11 h-11 rounded-xl overflow-hidden shadow-command border border-charcoal-900/15 flex-shrink-0 bg-charcoal-950 flex items-center justify-center p-0.5">
+            <img src="/cascade-city-logo.png" alt="Cascade City" className="w-full h-full object-contain rounded-lg" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
