@@ -22,8 +22,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { signIn, signUp, user, signOut } = useAuth();
   const [mode, setMode] = useState<'SIGN_IN' | 'SIGN_UP'>(initialMode);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -54,6 +56,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    if (mode === 'SIGN_UP') {
+      if (!fullName.trim()) {
+        setError('Please enter your full name.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match. Please verify.');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       if (mode === 'SIGN_IN') {
@@ -71,10 +84,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.error) {
           setError(res.error);
         } else {
-          setSuccessMessage('Account created successfully!');
+          setSuccessMessage('Account created successfully! Session active.');
           setTimeout(() => {
             onClose();
-          }, 600);
+          }, 700);
         }
       }
     } catch (err: any) {
@@ -99,7 +112,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal-900/60 backdrop-blur-sm animate-in fade-in select-none font-sans">
-      <div className="bg-cream-100 w-full max-w-sm rounded-2xl p-7 border-2 border-charcoal-900 shadow-[6px_6px_0px_0px_#1F1F24] relative space-y-6">
+      <div className="bg-cream-100 w-full max-w-sm rounded-2xl p-7 border-2 border-charcoal-900 shadow-[6px_6px_0px_0px_#1F1F24] relative space-y-5">
         
         {/* Close Button */}
         <button
@@ -114,10 +127,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Header */}
         <div className="pr-8 space-y-1">
           <h2 className="text-2xl font-extrabold text-charcoal-900 font-heading tracking-tight">
-            Welcome,
+            {user ? 'Welcome,' : mode === 'SIGN_IN' ? 'Welcome,' : 'Create account,'}
           </h2>
           <p className="text-sm text-charcoal-500 font-medium">
-            {user ? 'your active session' : mode === 'SIGN_IN' ? 'sign in to continue' : 'sign up to continue'}
+            {user
+              ? 'your active session'
+              : mode === 'SIGN_IN'
+              ? 'sign in to continue'
+              : 'join the urban resilience platform'}
           </p>
         </div>
 
@@ -159,8 +176,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
           </div>
-        ) : (
-          /* Sign In / Sign Up Neo-Brutalist Form */
+        ) : mode === 'SIGN_IN' ? (
+          /* ========================================================================= */
+          /* 1. SIGN IN FORM */
+          /* ========================================================================= */
           <form onSubmit={handleSubmit} className="space-y-4">
             
             {/* Feedback Alerts */}
@@ -234,18 +253,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
 
-            {/* Bottom Controls Row: Toggle Mode & "Let's go ->" Button */}
+            {/* Bottom Controls Row: Toggle Mode & Submit */}
             <div className="flex items-center justify-between pt-3">
               <button
                 type="button"
                 onClick={() => {
-                  setMode((prev) => (prev === 'SIGN_IN' ? 'SIGN_UP' : 'SIGN_IN'));
+                  setMode('SIGN_UP');
                   setError(null);
                   setSuccessMessage(null);
                 }}
                 className="text-xs text-charcoal-600 hover:text-charcoal-950 font-bold underline underline-offset-2 transition-colors cursor-pointer"
               >
-                {mode === 'SIGN_IN' ? 'Create account' : 'Existing user? Sign in'}
+                Create account
               </button>
 
               <button
@@ -258,6 +277,109 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ) : (
                   <>
                     <span>Let`s go</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* ========================================================================= */
+          /* 2. CREATE ACCOUNT FORM (Distinct Fields & Layout) */
+          /* ========================================================================= */
+          <form onSubmit={handleSubmit} className="space-y-3">
+            
+            {/* Feedback Alerts */}
+            {error && (
+              <div className="p-3 rounded-xl bg-dustybrown-100 border-2 border-charcoal-900 text-dustybrown-500 text-xs font-medium flex items-center space-x-2 shadow-[2px_2px_0px_0px_#1F1F24]">
+                <AlertCircle className="w-4 h-4 text-dustybrown-500 shrink-0" />
+                <span className="leading-snug">{error}</span>
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="p-3 rounded-xl bg-softblue-100 border-2 border-charcoal-900 text-charcoal-900 text-xs font-medium flex items-center space-x-2 shadow-[2px_2px_0px_0px_#1F1F24]">
+                <CheckCircle2 className="w-4 h-4 text-softblue-700 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {/* Full Name Field */}
+            <div>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Full Name (e.g. Alex Chen)"
+                disabled={isLoading}
+                required
+                className="w-full bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl px-4 py-2 text-sm font-medium text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none transition-all"
+              />
+            </div>
+
+            {/* Email Field */}
+            <div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Work Email (e.g. alex@city-grid.org)"
+                disabled={isLoading}
+                required
+                className="w-full bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl px-4 py-2 text-sm font-medium text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none transition-all"
+              />
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create Password (min 6 chars)"
+                disabled={isLoading}
+                required
+                className="w-full bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl px-4 py-2 text-sm font-medium text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none transition-all"
+              />
+            </div>
+
+            {/* Confirm Password Field */}
+            <div>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm Password"
+                disabled={isLoading}
+                required
+                className="w-full bg-white border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl px-4 py-2 text-sm font-medium text-charcoal-900 placeholder:text-charcoal-400 focus:outline-none transition-all"
+              />
+            </div>
+
+            {/* Bottom Controls Row: Toggle to Sign In & Submit */}
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('SIGN_IN');
+                  setError(null);
+                  setSuccessMessage(null);
+                }}
+                className="text-xs text-charcoal-600 hover:text-charcoal-950 font-bold underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                Existing user? Sign in
+              </button>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-5 py-2 bg-white hover:bg-cream-200 border-2 border-charcoal-900 shadow-[3px_3px_0px_0px_#1F1F24] rounded-xl font-bold text-xs font-mono text-charcoal-900 flex items-center justify-center space-x-1.5 hover:translate-x-[1.5px] hover:translate-y-[1.5px] hover:shadow-[1.5px_1.5px_0px_0px_#1F1F24] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-charcoal-900" />
+                ) : (
+                  <>
+                    <span>Create account</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </>
                 )}
