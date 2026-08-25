@@ -148,16 +148,18 @@ export const LandingPage: React.FC = () => {
                   text="Understand the Failure."
                   strokeColor="#1F1F24"
                   fillColor="#1F1F24"
-                  strokeWidth={1.4}
-                  drawDuration={1.4}
-                  fillDelay={0.15}
-                  stagger={0.03}
+                  strokeWidth={1.8}
+                  drawDuration={1.2}
+                  fillDelay={0.1}
+                  delay={0.1}
+                  stagger={0.035}
                   ease="power2.out"
                   trigger="mount"
-                  fillMode="wipe"
+                  fillMode="fade"
                   fontSize={64}
                   fontWeight={800}
                   letterSpacing={-2}
+                  replayOnHover={true}
                 />
               </div>
               <div className="w-full max-w-2xl">
@@ -165,16 +167,18 @@ export const LandingPage: React.FC = () => {
                   text="Predict the Cascade."
                   strokeColor="#7E7497"
                   fillColor="#7E7497"
-                  strokeWidth={1.4}
-                  drawDuration={1.4}
-                  fillDelay={0.15}
-                  stagger={0.03}
+                  strokeWidth={1.8}
+                  drawDuration={1.2}
+                  fillDelay={0.1}
+                  delay={0.6}
+                  stagger={0.035}
                   ease="power2.out"
                   trigger="mount"
-                  fillMode="wipe"
+                  fillMode="fade"
                   fontSize={64}
                   fontWeight={800}
                   letterSpacing={-2}
+                  replayOnHover={true}
                 />
               </div>
               <div className="w-full max-w-2xl">
@@ -182,16 +186,18 @@ export const LandingPage: React.FC = () => {
                   text="Plan the Recovery."
                   strokeColor="#1F1F24"
                   fillColor="#1F1F24"
-                  strokeWidth={1.4}
-                  drawDuration={1.4}
-                  fillDelay={0.15}
-                  stagger={0.03}
+                  strokeWidth={1.8}
+                  drawDuration={1.2}
+                  fillDelay={0.1}
+                  delay={1.1}
+                  stagger={0.035}
                   ease="power2.out"
                   trigger="mount"
-                  fillMode="wipe"
+                  fillMode="fade"
                   fontSize={64}
                   fontWeight={800}
                   letterSpacing={-2}
+                  replayOnHover={true}
                 />
               </div>
             </h1>

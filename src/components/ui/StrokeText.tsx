@@ -17,6 +17,7 @@ export interface StrokeTextProps {
   strokeWidth?: number;
   drawDuration?: number;
   fillDelay?: number;
+  delay?: number;
   stagger?: number;
   ease?: string;
   trigger?: 'mount' | 'hover' | 'scroll' | 'loop';
@@ -25,6 +26,7 @@ export interface StrokeTextProps {
   fontWeight?: number | string;
   letterSpacing?: number;
   reverse?: boolean;
+  replayOnHover?: boolean;
   className?: string;
   style?: CSSProperties;
 }
@@ -35,17 +37,19 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
   text = DEFAULT_TEXT,
   strokeColor = '#A78BFA',
   fillColor = '#F8FAFC',
-  strokeWidth = 1.4,
-  drawDuration = 1.6,
-  fillDelay = 0.2,
-  stagger = 0.05,
+  strokeWidth = 1.8,
+  drawDuration = 1.4,
+  fillDelay = 0.1,
+  delay = 0,
+  stagger = 0.04,
   ease = 'power2.out',
   trigger = 'mount',
-  fillMode = 'wipe',
+  fillMode = 'fade',
   fontSize = 128,
   fontWeight = 800,
-  letterSpacing = -4,
+  letterSpacing = -2,
   reverse = false,
+  replayOnHover = true,
   className = '',
   style = {},
 }) => {
@@ -60,7 +64,7 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
 
   const characters = useMemo(() => Array.from(String(text ?? '')), [text]);
 
-  const dash = Math.max(fontSize * 7, 200);
+  const dash = Math.max(fontSize * 8, 300);
 
   const fontStyle = useMemo(
     () => ({
@@ -87,7 +91,7 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
       }
       if (!bbox || !bbox.width) return;
 
-      const pad = Math.max(Number(strokeWidth) || 1, fontSize * 0.1);
+      const pad = Math.max(Number(strokeWidth) || 1, fontSize * 0.12);
       const next = {
         x: bbox.x - pad,
         y: bbox.y - pad,
@@ -110,8 +114,12 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
       (document as any).fonts.ready.then(measure).catch(() => {});
     }
 
+    // Fallback measurement if fonts or bbox were delayed
+    const timer = setTimeout(measure, 50);
+
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [characters, fontSize, fontWeight, letterSpacing, strokeWidth]);
 
@@ -126,20 +134,20 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
 
     const fillEnabled = fillMode !== 'none';
     const useWipe = fillEnabled && fillMode === 'wipe';
-    const fillDuration = Math.max(0.4, drawDuration * 0.5);
+    const fillDuration = Math.max(0.4, drawDuration * 0.45);
     const staggerConfig = reverse ? { each: stagger, from: 'end' as const } : stagger;
     const targets = [...strokes, ...fills, wipe].filter(Boolean);
 
     const setStart = () => {
       gsap.killTweensOf(targets);
-      gsap.set(strokes, { strokeDasharray: dash, strokeDashoffset: dash });
-      gsap.set(fills, { opacity: useWipe ? 1 : 0 });
+      gsap.set(strokes, { strokeDasharray: dash, strokeDashoffset: dash, opacity: 1 });
+      gsap.set(fills, { opacity: 0 });
       if (wipe) gsap.set(wipe, { attr: { width: 0 } });
     };
 
     const setEnd = () => {
       gsap.killTweensOf(targets);
-      gsap.set(strokes, { strokeDasharray: dash, strokeDashoffset: 0 });
+      gsap.set(strokes, { strokeDasharray: dash, strokeDashoffset: 0, opacity: 1 });
       gsap.set(fills, { opacity: fillEnabled ? 1 : 0 });
       if (wipe) gsap.set(wipe, { attr: { width: fillEnabled ? box.width : 0 } });
     };
@@ -156,8 +164,9 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
       setStart();
       const tl = gsap.timeline({
         paused: true,
+        delay,
         repeat: trigger === 'loop' ? -1 : 0,
-        repeatDelay: trigger === 'loop' ? 0.9 : 0,
+        repeatDelay: trigger === 'loop' ? 1.0 : 0,
         defaults: { overwrite: 'auto' },
       });
 
@@ -198,12 +207,22 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
       if (trigger === 'scroll') {
         scrollTrigger = ScrollTrigger.create({
           trigger: root,
-          start: 'top 82%',
+          start: 'top 85%',
           once: true,
           onEnter: () => timeline?.play(0),
         });
       } else {
         timeline.play(0);
+      }
+
+      if (replayOnHover) {
+        const playOnHover = () => {
+          timeline?.kill();
+          timeline = build();
+          timeline.play(0);
+        };
+        root.addEventListener('pointerenter', playOnHover);
+        removeHover = () => root.removeEventListener('pointerenter', playOnHover);
       }
     }
 
@@ -213,15 +232,15 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
       timeline?.kill();
       gsap.killTweensOf(targets);
     };
-  }, [box, dash, drawDuration, fillDelay, stagger, ease, trigger, fillMode, reverse]);
+  }, [box, dash, drawDuration, fillDelay, delay, stagger, ease, trigger, fillMode, reverse, replayOnHover]);
 
   const viewBox = box ? `${box.x} ${box.y} ${box.width} ${box.height}` : `0 ${-fontSize} 600 ${fontSize * 1.3}`;
 
   return (
     <span
       ref={rootRef}
-      className={`stroke-text ${trigger === 'hover' ? 'stroke-text--hover' : ''} ${className}`.trim()}
-      style={{ ...(style as any), '--stroke-text-height': `${Math.round(fontSize * 1.3)}px` }}
+      className={`stroke-text ${trigger === 'hover' || replayOnHover ? 'stroke-text--hover' : ''} ${className}`.trim()}
+      style={{ ...(style as any), '--stroke-text-height': `${Math.round(fontSize * 1.25)}px` }}
       role="img"
       aria-label={String(text ?? '')}
     >
@@ -259,7 +278,7 @@ export const StrokeText: React.FC<StrokeTextProps> = ({
           y="0"
           fill={fillColor}
           stroke="none"
-          style={fontStyle}
+          style={{ ...fontStyle, opacity: 0 }}
           clipPath={fillMode === 'wipe' && box ? `url(#${wipeId})` : undefined}
         >
           {characters.map((char, index) => (
