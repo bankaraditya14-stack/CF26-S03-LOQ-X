@@ -8,7 +8,7 @@ import { AuthProvider } from './context/AuthContext';
 export const AppContent: React.FC = () => {
   const { path, scenarioId } = useRouter();
 
-  if (path === '/simulator') {
+  if (path === '/simulator' || path === '/dashboard') {
     return <MissionControlScreen scenarioId={scenarioId} />;
   }
 
@@ -16,6 +16,7 @@ export const AppContent: React.FC = () => {
     return <AboutModelPage />;
   }
 
+  // Handles '/' and '/overview'
   return <LandingPage />;
 };
 

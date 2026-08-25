@@ -1,24 +1,36 @@
 import { useState, useEffect } from 'react';
 
-export type RoutePath = '/' | '/simulator' | '/about-model';
+export type RoutePath = '/' | '/simulator' | '/about-model' | '/overview' | '/dashboard';
 
 export interface RouteState {
   path: RoutePath;
   scenarioId?: string;
 }
 
-function parseLocation(): RouteState {
-  const pathname = window.location.pathname;
-  const searchParams = new URLSearchParams(window.location.search);
+export function normalizePath(pathname: string): RoutePath {
+  const clean = pathname.toLowerCase().replace(/\/+$/, '') || '/';
+
+  if (clean === '/simulator' || clean.startsWith('/simulator')) {
+    return '/simulator';
+  }
+  if (clean === '/dashboard' || clean.startsWith('/dashboard')) {
+    return '/simulator';
+  }
+  if (clean === '/about-model' || clean.startsWith('/about-model')) {
+    return '/about-model';
+  }
+  if (clean === '/overview' || clean.startsWith('/overview')) {
+    return '/overview';
+  }
+  return '/';
+}
+
+export function parseLocation(): RouteState {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const scenarioId = searchParams.get('scenario') || undefined;
 
-  let path: RoutePath = '/';
-  if (pathname === '/simulator' || pathname.startsWith('/simulator')) {
-    path = '/simulator';
-  } else if (pathname === '/about-model' || pathname.startsWith('/about-model')) {
-    path = '/about-model';
-  }
-
+  const path = normalizePath(pathname);
   return { path, scenarioId };
 }
 
@@ -28,9 +40,11 @@ export function navigate(to: RoutePath, params?: { scenario?: string }) {
     url += `?scenario=${encodeURIComponent(params.scenario)}`;
   }
 
-  if (window.location.pathname + window.location.search !== url) {
-    window.history.pushState({}, '', url);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+  if (typeof window !== 'undefined') {
+    if (window.location.pathname + window.location.search !== url) {
+      window.history.pushState({}, '', url);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   }
 }
 
